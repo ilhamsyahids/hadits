@@ -1,11 +1,13 @@
-"""Render eval/golden/lectures.json into transcripts with the Arabic taken from the corpus.
+"""Render eval/golden/{version}.json into transcripts with the Arabic taken from the corpus.
 
-    python3 eval/build_golden.py      # → ../data/eval/golden-v1.json (not committed: it contains corpus text)
+    python3 eval/build_golden.py [v1|v2]     # → ../data/eval/golden-{version}.json (not committed: it contains corpus text)
 
 Rules (see lectures.json "note"): `phrase` locates an excerpt in the source; the output uses the source's own
 tokens. `swap` replaces one located word (a deliberate misquote). `pick` takes source words in the given order
 (a paraphrase). `drop` removes one located word. `text` is a literal saying that is not in the corpus. `cite_only` is a reference already in the
-segment text. Accepted keys for verbatim items = every unit whose text contains the rendered quote.
+segment text. `meaning` (only the meaning, in the lecture's language) and `translit` (Latin transliteration) are also
+already in the segment text; their keys come from `phrase`. Accepted keys for verbatim items = every unit whose text
+contains the rendered quote.
 """
 import json
 import os
@@ -98,7 +100,8 @@ def render(item):
 
 
 def main():
-    spec = json.load(open(os.path.join(HERE, "golden", "lectures.json"), encoding="utf-8"))
+    version = sys.argv[1] if len(sys.argv) > 1 else "v1"
+    spec = json.load(open(os.path.join(HERE, "golden", f"{version}.json"), encoding="utf-8"))
     out = {"version": spec["version"], "lectures": []}
     n_items = 0
     for lec in spec["lectures"]:
@@ -122,6 +125,15 @@ def main():
                     items.append({"name": name, "segment": si, "quote": rendered, "source": item.get("key"), "expect": exp,
                                   "kind": "quran" if (item.get("key") or "").startswith("quran:") else "hadith"})
             for name, item in lec["items"].items():
+                said = item.get("meaning") or item.get("translit")
+                if said and said in text:
+                    keys = [item["key"]] + containing(norm(item["phrase"])) + [r[0] for r in DB.execute(
+                        "SELECT key FROM hadith WHERE instr(source_matches_json, ?) > 0", (f'"{item["key"]}"',))]
+                    items.append({"name": name, "segment": si, "quote": said, "source": item["key"],
+                                  "expect": {**item["expect"], "keys": sorted(set(keys))},
+                                  "kind": "quran" if item["key"].startswith("quran:") else "hadith",
+                                  "form": "meaning" if "meaning" in item else "translit"})
+            for name, item in lec["items"].items():
                 if "cite_only" in item and item["cite_only"] in text:
                     items.append({"name": name, "segment": si, "quote": item["cite_only"], "source": None, "expect": item["expect"],
                                   "kind": "quran" if item["expect"]["keys"][0].startswith("quran:") else "hadith"})
@@ -130,7 +142,7 @@ def main():
             t += dur
         n_items += len(items)
         out["lectures"].append({"id": lec["id"], "title": lec["title"], "lang": lec["lang"], "segments": segs, "items": items})
-    path = os.path.join(ROOT, "data", "eval", "golden-v1.json")
+    path = os.path.join(ROOT, "data", "eval", f"golden-{version}.json")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     json.dump(out, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"{len(out['lectures'])} lectures, {n_items} items → {path}")
