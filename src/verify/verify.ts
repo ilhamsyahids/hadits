@@ -1,5 +1,5 @@
 import { collection, CORE } from '../corpus/collections';
-import { family, type Grade, grades, present, reference, type UnitRow, unitsByKeys } from '../corpus/units';
+import { family, type Grade, grades, LIGHT_COLS, present, reference, type UnitRow, unitsByKeys } from '../corpus/units';
 import type { Bindings } from '../env';
 import type { Usage } from '../lib/gemini';
 import { type Hit, rrf, stemHits, trigramHits, vectorHits } from '../search/retrieve';
@@ -14,7 +14,7 @@ export type Status = 'verbatim' | 'paraphrase' | 'misquote' | 'weak_or_disputed'
 export type TextStatus = Exclude<Status, 'weak_or_disputed'>;
 
 export const THRESHOLDS = { verbatim: 0.92, verbatimCoverage: 0.9, notFound: 0.55, minCoverage: 0.5 };
-const TOP_CANDIDATES = 8;
+const TOP_CANDIDATES = 16;
 const WEAK = new Set(['daif', 'mawdu', 'disputed']);
 
 type Match = { rows: UnitRow[]; key: string; al: Alignment };
@@ -54,7 +54,7 @@ async function quranWindows(db: D1Database, keys: string[]): Promise<Map<string,
     const [, s, a] = k.split(':').map(Number) as [number, number, number];
     for (let x = Math.max(1, a - 4); x <= a + 4; x++) want.add(`quran:${s}:${x}`);
   }
-  const rows = await unitsByKeys(db, [...want]);
+  const rows = await unitsByKeys(db, [...want], LIGHT_COLS);
   const out = new Map<string, UnitRow[]>();
   for (const k of keys) {
     const [, s, a] = k.split(':').map(Number) as [number, number, number];
@@ -113,12 +113,17 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
   lap('candidates');
   const fused = quotes.map((s, i) => {
     const cited = (citedRows.get(s.id) ?? []).map((r, k) => ({ key: r.key, rank: k + 1 }));
-    return rrf({ cited, stem: lexical[i][0], tri: lexical[i][1], vector: vectors[i] ?? [] }).slice(0, TOP_CANDIDATES);
+    const top = rrf({ cited, stem: lexical[i][0], tri: lexical[i][1], vector: vectors[i] ?? [] }).slice(0, TOP_CANDIDATES);
+    // The key the speaker named is always aligned, however low it ranked.
+    for (const c of cited) if (!top.some((t) => t.key === c.key)) top.push({ key: c.key, score: 0, via: { cited: c.rank } });
+    return top;
   });
 
-  const rows = await unitsByKeys(env.CORPUS, fused.flat().map((f) => f.key));
   const quranKeys = fused.flat().map((f) => f.key).filter((k) => k.startsWith('quran:'));
-  const windows = await quranWindows(env.CORPUS, [...new Set(quranKeys)]);
+  const [rows, windows] = await Promise.all([
+    unitsByKeys(env.CORPUS, fused.flat().map((f) => f.key), LIGHT_COLS),
+    quranWindows(env.CORPUS, [...new Set(quranKeys)]),
+  ]);
 
   // Align every candidate; keep the best by alignment score, the rest become "near" matches.
   const best = new Map<number, { match: Match | null; near: Match[] }>();
@@ -147,11 +152,14 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
   });
 
   lap('aligned');
+  // Full rows (text, grades, narrators) only for what will be shown; loads while the judge runs.
+  const shown = spans.flatMap((s) => (s.words.length ? best.get(s.id)?.match?.rows ?? [] : citedRows.get(s.id) ?? []));
+  const fullRows = unitsByKeys(env.CORPUS, shown.map((r) => r.key));
   const details = new Map<number, Promise<Awaited<ReturnType<typeof detail>>>>();
   for (const s of spans) {
     const m = best.get(s.id)?.match;
-    const row = s.words.length ? m?.rows[0] : citedRows.get(s.id)?.[0];
-    if (row) details.set(s.id, detail(env, row, s.words.length ? m!.rows : citedRows.get(s.id)!));
+    const rs = s.words.length ? m?.rows : citedRows.get(s.id);
+    if (rs?.length) details.set(s.id, fullRows.then((full) => detail(env, full.get(rs[0].key) ?? rs[0], rs.map((r) => full.get(r.key) ?? r))));
   }
 
   // Grey band → judge, all spans in one call (runs while the details above load).
@@ -220,6 +228,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
       confidence = match ? round(cls === 'verbatim' ? match.al.similarity : 1 - match.al.similarity) : 0.9;
     }
 
+    if (s.optional && (text === 'not_found_in_corpus' || text === 'misquote' || !match)) continue;
     if (text === 'not_found_in_corpus' || !match) {
       refs.push({ ...base, status: 'not_found_in_corpus', text_status: 'not_found_in_corpus', confidence, decided_by: decided, reason, near: nearList.slice(0, 3), ...(s.citation ? { citation: { said: s.citation.text, keys: cited.map((r) => r.key), agrees: null } } : {}) });
       continue;

@@ -15,14 +15,18 @@ const COLS = `id, key, kind, collection, number, number_base, chapter_en, chapte
   ar_isnad, ar_matn, ar_prophetic, en_text, id_text, ar_norm, ar_stem, grade_status, grades_json, notes_json,
   narrators_json, family_id, parallel_of, same_as_previous_of, anthologies_json, url, sunnah_url`;
 
-export async function unitsByKeys(db: D1Database, keys: string[]): Promise<Map<string, UnitRow>> {
+/** Just what alignment and ranking need; full rows are loaded only for the chosen matches. */
+export const LIGHT_COLS = 'id, key, kind, collection, number, chapter_en, ar_norm, family_id, grade_status';
+
+export async function unitsByKeys(db: D1Database, keys: string[], cols = COLS): Promise<Map<string, UnitRow>> {
   const out = new Map<string, UnitRow>();
   const uniq = [...new Set(keys)];
-  for (let i = 0; i < uniq.length; i += 90) {
-    const part = uniq.slice(i, i + 90);
-    const { results } = await db.prepare(`SELECT ${COLS} FROM units WHERE key IN (${part.map(() => '?').join(',')})`).bind(...part).all<UnitRow>();
-    for (const r of results) out.set(r.key, r);
-  }
+  const parts = [];
+  for (let i = 0; i < uniq.length; i += 90) parts.push(uniq.slice(i, i + 90));
+  const results = await Promise.all(
+    parts.map((part) => db.prepare(`SELECT ${cols} FROM units WHERE key IN (${part.map(() => '?').join(',')})`).bind(...part).all<UnitRow>()),
+  );
+  for (const r of results.flatMap((x) => x.results)) out.set(r.key, r);
   return out;
 }
 

@@ -15,12 +15,13 @@ export type Span = {
   segments: number[];
   cue: 'quran' | 'hadith' | null; // what the speaker announced ("Allah berfirman", "Rasulullah bersabda")
   citation?: Citation; // a spoken reference next to the quote
+  optional?: boolean; // short and unannounced: reported only if it matches the corpus
 };
 
 const AR_WORD = /[ء-ي٠-٩ٰ-ۓە-ۿࢠ-ࣿﭐ-﷿ﹰ-﻿]+/g;
 const MIN_WORDS = 3; // runs under 6 words also need a cue (see below)
 const QURAN_CUE = /(berfirman|firman allah|firman-nya|allah ta'?ala|ayat|surat|surah|qs\b|al-?qur'?an|قال الله|قال تعالى|يقول الله|تعالى)/i;
-const HADITH_CUE = /(bersabda|sabda|rasulullah|rasul|nabi|hadits|hadis|hadith|the prophet|messenger|ﷺ|قال رسول|قال النبي|عن النبي|رواه|أخرجه)/i;
+const HADITH_CUE = /(bersabda|sabda|berkata|he said|said:|says:|rasulullah|rasul|nabi|hadits|hadis|hadith|the prophet|messenger|ﷺ|قال رسول|قال النبي|عن النبي|رواه|أخرجه)/i;
 
 // Formulas trimmed from the edges of a run (compared on norm() text).
 const LEADING = ['اعوذ بالله من الشيطان الرجيم', 'قال رسول الله', 'قال النبي', 'ان رسول الله قال', 'عن النبي انه قال', 'عن النبي قال',
@@ -101,8 +102,8 @@ export function detect(segments: Segment[], opts: { quoteMode?: boolean } = {}):
       citations.find((c) => !used.has(c) && c.end <= r.a && c.start >= prevB && r.a - c.end < 25);
     if (cite) used.add(cite);
     const cue: Span['cue'] = cite ? cite.kind : QURAN_CUE.test(before) ? 'quran' : HADITH_CUE.test(before) || /رواه|متفق عليه/.test(after.slice(0, 40)) ? 'hadith' : null;
-    // Short unannounced Arabic (greetings, du'a fragments) is not treated as a quote.
-    if (!cue && words.length < 6 && !opts.quoteMode) continue;
+    // Short unannounced Arabic (greetings, du'a fragments) is checked, but only reported when it matches.
+    const optional = !cue && words.length < 6 && !opts.quoteMode;
     const segIds = [...new Set([segAt[r.a], segAt[r.b - 1]])];
     for (let s = segIds[0]; s <= segIds[segIds.length - 1]; s++) if (!segIds.includes(s)) segIds.push(s);
     segIds.sort((x, y) => x - y);
@@ -115,6 +116,7 @@ export function detect(segments: Segment[], opts: { quoteMode?: boolean } = {}):
       segments: segIds,
       cue,
       citation: cite,
+      ...(optional ? { optional } : {}),
     });
   }
 

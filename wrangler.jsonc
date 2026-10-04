@@ -30,7 +30,9 @@
     "EMBED_MODEL": "gemini-embedding-2",
     "EMBED_DIM": "1536",
     "LLM_MODEL": "gemini-3.8-flash",
-    "LLM_MODEL_LITE": "gemini-3.5-flash-lite"
+    "LLM_MODEL_LITE": "gemini-3.5-flash-lite",
+    // Grey-band judge: the lite model keeps a lecture under 3 s; eval/run.ts compares it with LLM_MODEL
+    "JUDGE_MODEL": "gemini-3.5-flash-lite"
   },
   // Secrets (wrangler secret put): GEMINI_API_KEY, ADMIN_TOKEN, CF_AIG_TOKEN (optional: gateway auth token)
   "observability": { "enabled": true }

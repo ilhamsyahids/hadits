@@ -40,6 +40,6 @@ export async function judge(env: Bindings, items: JudgeItem[]): Promise<{ result
   const prompt = items
     .map((it) => `### item ${it.id}\nreference: ${it.reference}\nspoken: ${it.spoken}\nsource: ${it.source}\ndiff: ${it.diff}`)
     .join('\n\n');
-  const { data, usage } = await generateJSON<{ items: JudgeResult[] }>(env, { system: SYSTEM, prompt, schema: SCHEMA, thinking: 'low' });
+  const { data, usage } = await generateJSON<{ items: JudgeResult[] }>(env, { model: env.JUDGE_MODEL ?? env.LLM_MODEL, system: SYSTEM, prompt, schema: SCHEMA, thinking: 'low' });
   return { results: new Map(data.items.map((r) => [r.id, r])), usage };
 }

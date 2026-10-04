@@ -32,6 +32,8 @@ describe('parseCitations', () => {
     expect(one('Shahih Bukhari 6018')).toEqual([{ kind: 'hadith', collection: 'bukhari', number: '6018' }]);
     expect(one('HR Abu Dawud no 4031')).toEqual([{ kind: 'hadith', collection: 'abudawud', number: '4031' }]);
     expect(one('رواه البخاري')).toEqual([{ kind: 'hadith', collection: 'bukhari', number: '' }]);
+    expect(one('(HR Muslim).')).toEqual([{ kind: 'hadith', collection: 'muslim', number: '' }]);
+    expect(one('diriwayatkan oleh Imam Bukhari dan Muslim')).toEqual([{ kind: 'hadith', collection: 'bukhari', number: '' }]);
   });
   it('ignores timestamps and plain numbers', () => {
     expect(one('pada menit 12:30 beliau berkata ada 3 hal')).toEqual([]);
