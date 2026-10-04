@@ -22,3 +22,6 @@ __pycache__/
 
 # astro
 .astro/
+
+# the small redistributable sample corpus is committed (tools/build_sample.py)
+!sample/*.sql
