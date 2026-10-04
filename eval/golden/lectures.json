@@ -1,0 +1,501 @@
+{
+  "version": "v1",
+  "note": "Synthetic lecture scripts. {{name}} placeholders are rendered from the corpus by eval/build_golden.py: `phrase` only locates the excerpt in the source; the Arabic shown comes from the database. Misquotes are one explicit word swap; paraphrases pick source words in a different order or leave some out. Fabricated items are well-known sayings that are not in the corpus (checked locally). `drop` removes one located word (also a misquote). Label fix 4 Oct: 'تفكر ساعة خير من عبادة سنة' was planted as fabricated, but the corpus has 'ستين سنة' (suyuti:12834a), so it is now a misquote item. Label fix 4 Oct (2): two planted 'fabricated' sayings turned out to have a substantive counterpart in the corpus ('لا دين لمن لا عقل له' in matalib:3306; the النقش على الحجر simile in suyuti:19851a). They are now near-report items (paraphrase or misquote of that report), and two sayings with no counterpart (max in-order word containment ≤ 0.4) were added as not-found items.",
+  "lectures": [
+    {
+      "id": "niat-ikhlas",
+      "title": "Kajian Tazkiyatun Nafs: Niat dan Ikhlas",
+      "lang": "id",
+      "segments": [
+        "Bismillah. Jamaah yang dirahmati Allah, malam ini kita membahas niat dan keikhlasan.",
+        "Rasulullah bersabda: {{a}} (HR Bukhari no. 1). Jadi semua amal tergantung niatnya.",
+        "Allah berfirman tentang perintah ikhlas: {{b}}",
+        "Dalam hadits lain Rasulullah bersabda: {{c}} (HR Muslim). Yang dinilai adalah hati dan amal.",
+        "Ada juga yang sering mengutip sebagai hadits: {{d}}. Ini perlu kita cek dulu.",
+        "Pada hari kiamat, Allah berfirman: {{e}}",
+        "Silakan baca lagi QS Al-Bayyinah ayat 5 di rumah. Wallahu a'lam."
+      ],
+      "items": {
+        "a": {
+          "key": "bukhari:1",
+          "phrase": "انما الاعمال بالنيات وانما لكل امري ما نوي",
+          "expect": {
+            "status": "verbatim",
+            "citation_agrees": true
+          }
+        },
+        "b": {
+          "key": "quran:98:5",
+          "phrase": "وما امروا الا ليعبدوا الله مخلصين له الدين",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:98:5"
+            ]
+          }
+        },
+        "c": {
+          "key": "muslim:2564c",
+          "phrase": "ان الله لا ينظر الي صوركم واموالكم ولكن ينظر الي قلوبكم واعمالكم",
+          "expect": {
+            "status": "verbatim",
+            "citation_agrees": true
+          }
+        },
+        "d": {
+          "text": "من عرف نفسه فقد عرف ربه",
+          "expect": {
+            "status": "not_found_in_corpus"
+          }
+        },
+        "e": {
+          "key": "quran:26:88",
+          "to": "quran:26:89",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:26:88"
+            ]
+          }
+        },
+        "f": {
+          "cite_only": "QS Al-Bayyinah ayat 5",
+          "expect": {
+            "status": "reference",
+            "keys": [
+              "quran:98:5"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "akhlak-sesama",
+      "title": "Kajian Akhlak: Hati yang Bersih kepada Sesama",
+      "lang": "id",
+      "segments": [
+        "Ikhwah fillah, iman itu ada buahnya dalam muamalah. Nabi bersabda: {{a}}",
+        "Lalu Rasulullah bersabda: {{b}}. Ini definisi muslim sejati.",
+        "Siapa manusia terbaik? Dalam hadits disebutkan: {{c}}. Hatinya bersih, tidak ada dengki.",
+        "Ada slogan yang sering disebut hadits: {{d}}. Hati-hati dengan ini.",
+        "Dalam jual beli, Nabi bersabda: {{e}} (HR Bukhari).",
+        "Allah berfirman dalam surat Al-Hujurat: {{f}}. Yang paling mulia adalah yang paling bertakwa."
+      ],
+      "items": {
+        "a": {
+          "key": "bukhari:13",
+          "phrase": "لا يومن احدكم حتي يحب لاخيه ما يحب لنفسه",
+          "expect": {
+            "status": "verbatim"
+          }
+        },
+        "b": {
+          "key": "muslim:41",
+          "phrase": "المسلم من سلم المسلمون من لسانه ويده",
+          "swap": [
+            "لسانه",
+            "مَالِهِ"
+          ],
+          "expect": {
+            "status": "misquote"
+          }
+        },
+        "c": {
+          "key": "ibnmajah:4216",
+          "pick": [
+            "افضل",
+            "الناس",
+            "كل",
+            "مخموم",
+            "القلب",
+            "صدوق",
+            "اللسان"
+          ],
+          "expect": {
+            "status": "paraphrase",
+            "keys": [
+              "ibnmajah:4216",
+              "suyuti:3839a",
+              "suyuti:13865a",
+              "shuab:6180",
+              "mishkat:5221"
+            ]
+          }
+        },
+        "d": {
+          "text": "حب الوطن من الإيمان",
+          "expect": {
+            "status": "not_found_in_corpus"
+          }
+        },
+        "e": {
+          "key": "muslim:101",
+          "phrase": "ومن غشنا فليس منا",
+          "expect": {
+            "status": "verbatim",
+            "citation_agrees": false
+          }
+        },
+        "f": {
+          "key": "quran:49:13",
+          "phrase": "ان اكرمكم عند الله اتقاكم",
+          "swap": [
+            "اتقاكم",
+            "أَعْلَمُكُمْ"
+          ],
+          "expect": {
+            "status": "misquote",
+            "keys": [
+              "quran:49:13"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "menuntut-ilmu",
+      "title": "Kajian Adab: Keutamaan Menuntut Ilmu",
+      "lang": "id",
+      "segments": [
+        "Saudaraku, menuntut ilmu itu kewajiban. Sering disebut hadits: {{a}} (HR Ibnu Majah no. 224).",
+        "Ada juga ungkapan populer: {{b}}. Itu bukan hadits menurut para ulama.",
+        "Rasulullah bersabda: {{c}}. Yang terbaik adalah yang belajar dan mengajarkan Al-Qur'an.",
+        "Kadang orang mengutipnya begini: {{d}}. Perhatikan bedanya.",
+        "Allah berfirman: {{e}}",
+        "Dan doa yang Allah ajarkan kepada Nabi: {{f}}",
+        "Ada juga yang menyebut: {{g}}. Coba kita lihat sumbernya."
+      ],
+      "items": {
+        "a": {
+          "key": "ibnmajah:224",
+          "phrase": "طلب العلم فريضه علي كل مسلم",
+          "expect": {
+            "status": "weak_or_disputed",
+            "citation_agrees": true
+          }
+        },
+        "b": {
+          "text": "اطلبوا العلم من المهد إلى اللحد",
+          "expect": {
+            "status": "not_found_in_corpus"
+          }
+        },
+        "c": {
+          "key": "bukhari:5027",
+          "phrase": "خيركم من تعلم القران وعلمه",
+          "expect": {
+            "status": "verbatim"
+          }
+        },
+        "d": {
+          "key": "bukhari:5027",
+          "phrase": "خيركم من تعلم القران وعلمه",
+          "swap": [
+            "القران",
+            "الْعِلْمَ"
+          ],
+          "expect": {
+            "status": "misquote"
+          }
+        },
+        "e": {
+          "key": "quran:58:11",
+          "phrase": "يرفع الله الذين امنوا منكم والذين اوتوا العلم درجت",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:58:11"
+            ]
+          }
+        },
+        "f": {
+          "key": "quran:20:114",
+          "phrase": "وقل رب زدني علما",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:20:114"
+            ]
+          }
+        },
+        "g": {
+          "text": "اطلبوا العلم ولو بالصين",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "shuab:1543",
+              "suyuti:3401a"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "menjaga-lisan",
+      "title": "Kajian Akhlak: Menjaga Lisan",
+      "lang": "id",
+      "segments": [
+        "Jamaah sekalian, lisan bisa mengangkat dan menjatuhkan. Rasulullah bersabda: {{a}}",
+        "Juga sabda beliau: {{b}}. Tinggalkan yang tidak bermanfaat.",
+        "Nabi bersabda tentang nasihat: {{c}}",
+        "Allah berfirman: {{d}}. Setiap kata dicatat.",
+        "Ada yang bilang hadits: {{e}}. Maknanya baik, tapi bukan hadits.",
+        "Hadits tentang hati ini juga ada dalam Shahih Muslim nomor 2564."
+      ],
+      "items": {
+        "a": {
+          "key": "bukhari:6138",
+          "phrase": "ومن كان يومن بالله واليوم الاخر فليقل خيرا او ليصمت",
+          "expect": {
+            "status": "verbatim"
+          }
+        },
+        "b": {
+          "key": "tirmidhi:2317",
+          "phrase": "من حسن اسلام المرء تركه ما لا يعنيه",
+          "expect": {
+            "status": "weak_or_disputed",
+            "keys": [
+              "tirmidhi:2317",
+              "ibnmajah:3976"
+            ]
+          }
+        },
+        "c": {
+          "key": "muslim:55a",
+          "pick": [
+            "الدين",
+            "النصيحه",
+            "لله",
+            "ولكتابه",
+            "ولرسوله",
+            "ولايمه",
+            "المسلمين",
+            "وعامتهم"
+          ],
+          "expect": {
+            "status": "paraphrase"
+          }
+        },
+        "d": {
+          "key": "quran:50:18",
+          "phrase": "ما يلفظ من قول الا لديه رقيب عتيد",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:50:18"
+            ]
+          }
+        },
+        "e": {
+          "text": "النظافة من الإيمان",
+          "expect": {
+            "status": "not_found_in_corpus"
+          }
+        },
+        "f": {
+          "cite_only": "Shahih Muslim nomor 2564",
+          "expect": {
+            "status": "reference",
+            "keys": [
+              "muslim:2564a"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "shalat",
+      "title": "Kajian Fiqih: Kedudukan Shalat",
+      "lang": "id",
+      "segments": [
+        "Bismillah. Allah memerintahkan kita meminta tolong dengan shalat: {{a}}",
+        "Rasulullah bersabda: {{b}}. Jadi tata cara shalat mengikuti Nabi.",
+        "Allah berfirman: {{c}}",
+        "Perintah shalat sering digandeng dengan zakat, Allah berfirman: {{d}}",
+        "Allah berfirman di awal surat Al-Mu'minun: {{e}}",
+        "Ada perkataan yang disandarkan kepada Nabi: {{f}}. Ini tidak ada sumbernya.",
+        "Ada juga yang menyebut sebagai hadits: {{g}}. Itu perkataan tabib, bukan sabda Nabi."
+      ],
+      "items": {
+        "a": {
+          "key": "quran:2:45",
+          "phrase": "واستعينوا بالصبر والصلاه",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:2:45",
+              "quran:2:153"
+            ]
+          }
+        },
+        "b": {
+          "key": "bukhari:631",
+          "phrase": "وصلوا كما رايتموني اصلي",
+          "expect": {
+            "status": "verbatim"
+          }
+        },
+        "c": {
+          "key": "quran:29:45",
+          "phrase": "ان الصلاه تنها عن الفحشاء والمنكر",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:29:45"
+            ]
+          }
+        },
+        "d": {
+          "key": "quran:2:43",
+          "phrase": "واقيموا الصلاه واتوا الزكاه واركعوا مع الركعين",
+          "swap": [
+            "الزكاه",
+            "الصَّدَقَةَ"
+          ],
+          "expect": {
+            "status": "misquote",
+            "keys": [
+              "quran:2:43"
+            ]
+          }
+        },
+        "e": {
+          "key": "quran:23:1",
+          "to": "quran:23:2",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:23:1"
+            ]
+          }
+        },
+        "f": {
+          "text": "الدين هو العقل لا دين لمن لا عقل له",
+          "expect": {
+            "status": "paraphrase",
+            "status_any": [
+              "paraphrase",
+              "misquote"
+            ],
+            "keys": [
+              "matalib:3306",
+              "tabarani:11532",
+              "suyuti:4915a"
+            ]
+          }
+        },
+        "g": {
+          "text": "المعدة بيت الداء والحمية رأس الدواء",
+          "expect": {
+            "status": "not_found_in_corpus"
+          }
+        }
+      }
+    },
+    {
+      "id": "rahmat",
+      "title": "Lecture: Mercy and Compassion",
+      "lang": "en",
+      "segments": [
+        "Brothers and sisters, mercy is at the heart of this religion. The Prophet said: {{a}}",
+        "Allah says about the Prophet: {{b}}",
+        "The Prophet also said: {{c}}. What matters is the heart.",
+        "And he said: {{d}}. Modesty is part of faith.",
+        "Some people quote this as a hadith: {{e}}. We should check it.",
+        "Another saying people attribute to the Prophet: {{g}}. Reflection is better than worship, they say.",
+        "I have also heard this called a hadith: {{h}}. I could not find it anywhere.",
+        "Read QS Al-Anbiya: 107 again tonight."
+      ],
+      "items": {
+        "a": {
+          "key": "tirmidhi:1924",
+          "phrase": "ارحموا من في الارض يرحمكم من في السماء",
+          "expect": {
+            "status": "verbatim"
+          }
+        },
+        "b": {
+          "key": "quran:21:107",
+          "phrase": "وما ارسلنك الا رحمه للعلمين",
+          "expect": {
+            "status": "verbatim",
+            "keys": [
+              "quran:21:107"
+            ]
+          }
+        },
+        "c": {
+          "key": "muslim:2564c",
+          "pick": [
+            "ان",
+            "الله",
+            "لا",
+            "ينظر",
+            "الي",
+            "صوركم",
+            "ولكن",
+            "ينظر",
+            "الي",
+            "قلوبكم"
+          ],
+          "expect": {
+            "status": "paraphrase",
+            "keys": [
+              "muslim:2564c",
+              "muslim:2564b",
+              "ibnmajah:4143"
+            ]
+          }
+        },
+        "d": {
+          "key": "muslim:36a",
+          "phrase": "الحياء من الايمان",
+          "swap": [
+            "الايمان",
+            "الضَّعْفِ"
+          ],
+          "expect": {
+            "status": "misquote"
+          }
+        },
+        "e": {
+          "text": "العلم في الصغر كالنقش في الحجر",
+          "expect": {
+            "status": "paraphrase",
+            "status_any": [
+              "paraphrase",
+              "misquote"
+            ],
+            "keys": [
+              "suyuti:19851a"
+            ]
+          }
+        },
+        "f": {
+          "cite_only": "QS Al-Anbiya: 107",
+          "expect": {
+            "status": "reference",
+            "keys": [
+              "quran:21:107"
+            ]
+          }
+        },
+        "g": {
+          "key": "suyuti:12834a",
+          "phrase": "تفكر ساعه خير من عباده ستين سنه",
+          "drop": "ستين",
+          "expect": {
+            "status": "misquote"
+          }
+        },
+        "h": {
+          "text": "عمل الإنسان بالليل يرضي الرحمن",
+          "expect": {
+            "status": "not_found_in_corpus"
+          }
+        }
+      }
+    }
+  ]
+}
