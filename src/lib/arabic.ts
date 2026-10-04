@@ -8,8 +8,11 @@ const NON_LETTER = /[^ء-ي٠-٩\s]/g;
 const HONORIFIC_LIGATURES = /[ﷺﷻ﵀-﵏]/g;
 const FOOTNOTE = /\[\^\d+\]/g;
 
+// ىٰ is a long a inside a word (تتوفىٰهم → تتوفاهم) but plain alif maqsura at the end (علىٰ → على).
+const YA_DAGGER_MID = /ىٰ(?=[ً-ٰٟۖ-ۭ]*[ء-ي])/g;
+
 function letters(s: string): string {
-  s = s.replaceAll('وٰ', 'ا').replaceAll('ىٰ', 'ا');
+  s = s.replaceAll('وٰ', 'ا').replace(YA_DAGGER_MID, 'ا');
   s = s.replace(HARAKAT, '').replaceAll('ـ', '');
   s = s.replace(ALIF, 'ا');
   s = s.replaceAll('ى', 'ي').replaceAll('ة', 'ه').replaceAll('ؤ', 'و').replaceAll('ئ', 'ي');
