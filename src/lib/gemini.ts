@@ -15,14 +15,15 @@ function endpoint(env: Bindings, path: string): { url: string; headers: Record<s
   return { url: `${GOOGLE}/${path}`, headers };
 }
 
-async function call<T>(env: Bindings, path: string, body: unknown): Promise<T> {
+async function call<T>(env: Bindings, path: string, body: unknown, timeoutMs?: number): Promise<T> {
   const payload = JSON.stringify(body);
   const { url, headers } = endpoint(env, path);
-  let res = await fetch(url, { method: 'POST', headers, body: payload });
+  const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
+  let res = await fetch(url, { method: 'POST', headers, body: payload, signal });
   // Gateway refused (bad token, outage): the same request straight to Google, so a gateway problem never breaks verify.
   if (env.CF_AIG_TOKEN && (res.status === 401 || res.status === 403 || res.status >= 500)) {
     console.warn(`ai gateway ${res.status}; calling Gemini directly`);
-    res = await fetch(`${GOOGLE}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: payload });
+    res = await fetch(`${GOOGLE}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: payload, signal });
   }
   if (!res.ok) throw new Error(`gemini ${path.split(':')[1]} ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json() as Promise<T>;
@@ -67,7 +68,7 @@ export type Usage = { input: number; output: number };
 /** One structured-output call. `schema` is a Gemini responseSchema (OpenAPI subset). */
 export async function generateJSON<T>(
   env: Bindings,
-  opts: { model?: string; system: string; prompt: string; schema: unknown; thinking?: 'minimal' | 'low' | 'medium' | 'high' },
+  opts: { model?: string; system: string; prompt: string; schema: unknown; thinking?: 'minimal' | 'low' | 'medium' | 'high'; timeoutMs?: number },
 ): Promise<{ data: T; usage: Usage }> {
   const model = opts.model ?? env.LLM_MODEL;
   const res = await call<GenerateResponse>(env, `models/${model}:generateContent`, {
@@ -79,7 +80,7 @@ export async function generateJSON<T>(
       temperature: 0,
       ...(opts.thinking ? { thinkingConfig: { thinkingLevel: opts.thinking } } : {}),
     },
-  });
+  }, opts.timeoutMs);
   const text = res.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text ?? '').join('') ?? '';
   const u = res.usageMetadata ?? {};
   return {

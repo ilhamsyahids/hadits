@@ -124,6 +124,7 @@ export function present(row: UnitRow, opts: { full?: boolean; lang?: Lang } = {}
     en: row.en_text,
     id: row.id_text,
     grade_status: row.grade_status,
+    family_id: row.family_id,
     grades: grades(row),
     parallel_of: row.parallel_of,
     same_as_previous_of: row.same_as_previous_of,
