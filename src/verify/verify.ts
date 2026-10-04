@@ -1,5 +1,5 @@
 import { collection, CORE } from '../corpus/collections';
-import { family, type Grade, grades, LIGHT_COLS, present, reference, type UnitRow, unitsByKeys } from '../corpus/units';
+import { family, type Grade, grades, type Lang, LIGHT_COLS, present, reference, type UnitRow, unitsByKeys } from '../corpus/units';
 import type { Bindings } from '../env';
 import type { Usage } from '../lib/gemini';
 import { type Hit, rrf, stemHits, trigramHits, vectorHits } from '../search/retrieve';
@@ -96,7 +96,8 @@ const diffText = (ops: Op[]) =>
     .map((o) => (o.op === 'extra' ? `+${o.spoken}` : o.op === 'missing' ? `-${o.source}` : `${o.spoken}→${o.source}`))
     .join(' ') || '(no differences)';
 
-export async function verify(env: Bindings, segments: Segment[], opts: { judge?: boolean; quoteMode?: boolean } = {}) {
+export async function verify(env: Bindings, segments: Segment[], opts: { judge?: boolean; quoteMode?: boolean; lang?: Lang } = {}) {
+  const lang = opts.lang ?? 'en';
   const t0 = Date.now();
   const timing: Record<string, number> = {};
   const lap = (name: string) => (timing[name] = Date.now() - t0);
@@ -159,7 +160,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
   for (const s of spans) {
     const m = best.get(s.id)?.match;
     const rs = s.words.length ? m?.rows : citedRows.get(s.id);
-    if (rs?.length) details.set(s.id, fullRows.then((full) => detail(env, full.get(rs[0].key) ?? rs[0], rs.map((r) => full.get(r.key) ?? r))));
+    if (rs?.length) details.set(s.id, fullRows.then((full) => detail(env, full.get(rs[0].key) ?? rs[0], rs.map((r) => full.get(r.key) ?? r), lang)));
   }
 
   // Grey band → judge, all spans in one call (runs while the details above load).
@@ -172,7 +173,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
         id: s.id,
         spoken: s.words.join(' '),
         source: src.slice(Math.max(0, m.al.srcFrom - 12), m.al.srcTo + 12).join(' '),
-        reference: reference(m.rows[0]),
+        reference: reference(m.rows[0], lang),
         diff: diffText(m.al.ops),
       });
     }
@@ -181,7 +182,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
   let verdicts = new Map<number, { label: string; reason: string; confidence: number }>();
   if (grey.length && opts.judge !== false) {
     try {
-      const j = await judge(env, grey);
+      const j = await judge(env, grey, lang);
       verdicts = j.results;
       usage = j.usage;
     } catch (e) {
@@ -200,12 +201,12 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
       refs.push(
         row
           ? { ...base, status: 'reference', text_status: 'reference', confidence: 1, decided_by: 'citation', ...(await details.get(s.id)!), citation: { said: s.citation!.text, keys: cited.map((r) => r.key), agrees: true } }
-          : { ...base, status: 'not_found_in_corpus', text_status: 'not_found_in_corpus', confidence: 0.9, decided_by: 'citation', reason: 'Rujukan yang disebut tidak ada di korpus.', citation: { said: s.citation!.text, keys: [], agrees: null } },
+          : { ...base, status: 'not_found_in_corpus', text_status: 'not_found_in_corpus', confidence: 0.9, decided_by: 'citation', reason: MESSAGES[lang].missingRef, citation: { said: s.citation!.text, keys: [], agrees: null } },
       );
       continue;
     }
     const { match, near } = best.get(s.id)!;
-    const nearList = near.filter((n) => n !== match).map((n) => ({ key: n.key, reference: reference(n.rows[0]), similarity: round(n.al.similarity) }));
+    const nearList = near.filter((n) => n !== match).map((n) => ({ key: n.key, reference: reference(n.rows[0], lang), similarity: round(n.al.similarity) }));
     let text: TextStatus;
     let decided: Verdict['decided_by'] = 'alignment';
     let reason: string | undefined;
@@ -268,7 +269,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
 }
 
 /** Grades by grader, the variant family, narrators; grades borrowed from the family when the matched wording has none. */
-async function detail(env: Bindings, row: UnitRow, rows: UnitRow[]) {
+async function detail(env: Bindings, row: UnitRow, rows: UnitRow[], lang: Lang) {
   const fam = row.kind === 'hadith' ? await family(env.CORPUS, row) : [];
   const g = grades(row);
   let family_grades: Verdict['family_grades'];
@@ -277,21 +278,28 @@ async function detail(env: Bindings, row: UnitRow, rows: UnitRow[]) {
     const r = core ? (await unitsByKeys(env.CORPUS, [core.key])).get(core.key) : undefined;
     if (r && grades(r).length) family_grades = { via: r.key, grades: grades(r) };
   }
-  const p = present(row, { full: true });
+  const p = present(row, { full: true, lang });
   return {
     match: { ...p, ...(rows.length > 1 ? { range: rows.map((r) => r.key), ar: { ...p.ar, matn: rows.map((r) => r.ar_matn).join(' ') } } : {}) },
     grades: g,
-    grade_summary: { status: row.grade_status ?? 'ungraded', note: gradeNote(row) },
+    grade_summary: { status: row.grade_status ?? 'ungraded', note: gradeNote(row, lang) },
     family_grades,
     family: fam,
     narrators: p.narrators,
   };
 }
 
-function gradeNote(row: UnitRow): string | undefined {
+const MESSAGES: Record<Lang, { missingRef: string; sahihayn: (c: string) => string; disputed: string }> = {
+  en: { missingRef: 'The reference that was said is not in the corpus.', sahihayn: (c) => `In ${c}: accepted as authentic as a whole.`, disputed: 'Graders disagree; see the list of graders.' },
+  ar: { missingRef: 'الإحالة المذكورة غير موجودة في المدوّنة.', sahihayn: (c) => `في ${c}: متلقّى بالقبول.`, disputed: 'اختلف المحدّثون في الحكم عليه؛ انظر قائمة الأحكام.' },
+  id: { missingRef: 'Rujukan yang disebut tidak ada di korpus.', sahihayn: (c) => `Dalam ${c}: diterima sebagai shahih secara keseluruhan.`, disputed: 'Para penilai berbeda pendapat; lihat daftar penilai.' },
+};
+
+function gradeNote(row: UnitRow, lang: Lang): string | undefined {
   if (row.kind === 'quran') return undefined;
-  if (row.grade_status === 'sahihayn') return `Dalam ${collection(row.collection)?.id_name ?? row.collection}: diterima sebagai shahih secara keseluruhan.`;
-  if (row.grade_status === 'disputed') return 'Para penilai berbeda pendapat; lihat daftar penilai.';
+  const c = collection(row.collection);
+  if (row.grade_status === 'sahihayn') return MESSAGES[lang].sahihayn(c ? (lang === 'ar' ? c.ar : lang === 'id' ? c.id_name : c.en) : row.collection);
+  if (row.grade_status === 'disputed') return MESSAGES[lang].disputed;
   return undefined;
 }
 
