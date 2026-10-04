@@ -60,16 +60,37 @@ export async function latinHits(env: Bindings, text: string, kind?: Kind, limit 
   return ftsQuery(env.CORPUS, 'units_fts', `{en_text id_text} : (${orQuery(toks)})`, kind, limit);
 }
 
+type VectorMatch = { id: string; score: number };
+
+/** Local dev only: brute-force cosine over the sample's vectors in D1 (a few thousand rows). */
+async function localVectorQuery(db: D1Database, values: number[], topK: number, kind?: Kind): Promise<VectorMatch[]> {
+  const { results } = await db.prepare(`SELECT id, v FROM local_vectors${kind ? ' WHERE kind = ?' : ''}`).bind(...(kind ? [kind] : [])).all<{ id: string; v: string }>();
+  let qn = 0;
+  for (const x of values) qn += x * x;
+  qn = Math.sqrt(qn) || 1;
+  return results
+    .map((r) => {
+      const v = JSON.parse(r.v) as number[];
+      let dot = 0, vn = 0;
+      for (let i = 0; i < v.length; i++) (dot += v[i] * values[i]), (vn += v[i] * v[i]);
+      return { id: r.id, score: dot / (qn * (Math.sqrt(vn) || 1)) };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
 /** One embedding call for all queries; each returns its own hit list. Vector ids "{key}#p" are prophetic spans. */
 export async function vectorHits(env: Bindings, queries: string[], task: EmbedTask, kind?: Kind, topK = 40): Promise<Hit[][]> {
   if (!queries.length) return [];
   const vectors = await embedQueries(env, queries.map((q) => queryText(q, task)));
   return Promise.all(
     vectors.map(async (values) => {
-      const res = await env.UNITS_INDEX.query(values, { topK, ...(kind ? { filter: { kind } } : {}) });
+      const matches: VectorMatch[] = env.LOCAL_VECTORS === '1'
+        ? await localVectorQuery(env.CORPUS, values, topK, kind)
+        : (await env.UNITS_INDEX.query(values, { topK, ...(kind ? { filter: { kind } } : {}) })).matches;
       const seen = new Set<string>();
       const hits: Hit[] = [];
-      for (const m of res.matches) {
+      for (const m of matches) {
         const key = m.id.replace(/#p$/, '');
         if (seen.has(key)) continue;
         seen.add(key);
