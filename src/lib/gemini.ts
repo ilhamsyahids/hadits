@@ -16,8 +16,14 @@ function endpoint(env: Bindings, path: string): { url: string; headers: Record<s
 }
 
 async function call<T>(env: Bindings, path: string, body: unknown): Promise<T> {
+  const payload = JSON.stringify(body);
   const { url, headers } = endpoint(env, path);
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  let res = await fetch(url, { method: 'POST', headers, body: payload });
+  // Gateway refused (bad token, outage): the same request straight to Google, so a gateway problem never breaks verify.
+  if (env.CF_AIG_TOKEN && (res.status === 401 || res.status === 403 || res.status >= 500)) {
+    console.warn(`ai gateway ${res.status}; calling Gemini directly`);
+    res = await fetch(`${GOOGLE}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: payload });
+  }
   if (!res.ok) throw new Error(`gemini ${path.split(':')[1]} ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json() as Promise<T>;
 }

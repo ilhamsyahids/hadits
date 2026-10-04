@@ -11,8 +11,8 @@ export type JudgeResult = { id: number; label: JudgeLabel; reason: string; confi
 const SYSTEM = `You check quotations in Islamic lectures. For each item you get the Arabic the speaker said, the source text it was matched to (from a hadith or Quran database), and a word diff.
 Classify each item:
 - "paraphrase": the same verse or report with the same meaning. Wording differs: order, omitted parts, connecting words, a known alternative wording, or a loose retelling. Nothing that changes what is said.
-- "misquote": presented as this text, but a changed, added or dropped word changes the meaning: negation, pronoun or person (you/they), number, who acts, a ruling word (wajib/haram/sunnah), or words attributed to the Prophet or to Allah that the source does not contain.
-- "different_text": not the same verse or report; the two only share common phrases.
+- "misquote": presented as this text, about the same subject, but a changed, added or dropped word changes the meaning: negation, pronoun or person (you/they), a number or amount, who acts, a different legal or ritual term (zakat vs sadaqah, fard vs sunnah, halal vs haram), or words attributed to the Prophet or to Allah that the source does not contain.
+- "different_text": not the same verse or report. Typical sign: the main subject differs (e.g. cleanliness vs modesty) and the two share only common words such as من، في، الله، الإيمان.
 Give a one-sentence reason in Bahasa Indonesia that names the changed words. Never write out or correct the Quran or hadith yourself; only describe the difference. Confidence is 0..1.`;
 
 const SCHEMA = {
