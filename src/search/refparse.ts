@@ -109,6 +109,18 @@ export function parseCitations(text: string): Citation[] {
     }
   }
 
+  // "(HR Muslim)", "diriwayatkan oleh Imam Bukhari", "narrated by Muslim" (no number): collection only.
+  for (const m of text.matchAll(/\b(?:HR|H\.R|riwayat|diriwayatkan oleh|narrated by|reported by|recorded by)\.?\s+(?:imam\s+)?([A-Za-z'’-]+(?:\s+[A-Za-z'’-]+){0,2})/gi)) {
+    const ws = m[1].split(/\s+/);
+    for (let k = ws.length; k >= 1; k--) {
+      const coll = collectionByAlias(ws.slice(0, k).join(''));
+      if (!coll) continue;
+      const end = m.index! + m[0].indexOf(m[1]) + ws.slice(0, k).join(' ').length;
+      add({ kind: 'hadith', collection: coll, number: '', start: m.index!, end, text: text.slice(m.index!, end) });
+      break;
+    }
+  }
+
   // رواه البخاري / رواه مسلم (no number): collection only, resolved later by text match.
   for (const m of text.matchAll(/(?:رواه|أخرجه|اخرجه)\s+([^\s،.]+(?:\s+[^\s،.]+)?)/g)) {
     const hit = ARABIC_COLLECTIONS.find(([re]) => re.test(m[1]));
