@@ -1,0 +1,24 @@
+# secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# data is never committed (see DATA.md)
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.sql
+*.har
+
+# build / tooling
+node_modules/
+.wrangler/
+dist/
+.DS_Store
+__pycache__/
+
+# astro
+.astro/
