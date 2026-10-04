@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from './env';
 import { admin } from './routes/admin';
+import { v1 } from './routes/v1';
 
 // JSON API: /health, /v1/*, /admin/*. Pages are rendered by Astro after these routes (src/worker.ts).
 export const api = new Hono<AppEnv>();
@@ -13,3 +14,4 @@ api.get('/health', async (c) => {
 });
 
 api.route('/admin', admin);
+api.route('/v1', v1);
