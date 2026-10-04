@@ -11,7 +11,11 @@ const FOOTNOTE = /\[\^\d+\]/g;
 // ىٰ is a long a inside a word (تتوفىٰهم → تتوفاهم) but plain alif maqsura at the end (علىٰ → على).
 const YA_DAGGER_MID = /ىٰ(?=[ً-ٰٟۖ-ۭ]*[ء-ي])/g;
 
+// Uthmani writes the vocative joined to the next word (يَٰٓأَيُّهَا، يَٰعِبَادِ); imlaei and speech separate it (يا أيها).
+const VOCATIVE = /(?<!\S)\u064a\u064e?\u0670\u0653?/g;
+
 function letters(s: string): string {
+  s = s.replace(VOCATIVE, 'يا ');
   s = s.replaceAll('وٰ', 'ا').replace(YA_DAGGER_MID, 'ا');
   s = s.replace(HARAKAT, '').replaceAll('ـ', '');
   s = s.replace(ALIF, 'ا');

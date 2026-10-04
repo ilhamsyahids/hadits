@@ -1,9 +1,11 @@
-"""Patch the D1 rows whose match keys changed when ىٰ at word end stopped becoming ا (5 Oct 2026).
+"""Patch the D1 rows whose match keys changed after a normaliser fix in tools/arabic.py (5 Oct 2026).
 
-    python3 tools/reindex_quran.py        # → ../data/d1/70_reindex_*.sql, then: tools/import_d1.sh "70_reindex_*"
+    python3 tools/reindex_quran.py vocative   # or ya_dagger; then: tools/import_d1.sh "70_reindex_*"
+
+Fixes: "ya_dagger" (word-final ىٰ stays alif maqsura), "vocative" (Uthmani يَٰٓأَيُّهَا → يا أيها).
 
 External-content FTS keeps the old tokens until told otherwise, so each changed row gets: FTS 'delete' with the
-row's current values → UPDATE → INSERT the new values (units_fts and units_tri) → mark it in reindex_done. Every
+row's current values → UPDATE → INSERT the new values (units_fts and units_tri) → mark it in reindex_done_{fix}. Every
 step skips rows already marked, so a re-run after a dropped connection doesn't touch finished rows.
 Unit ids follow the same order as tools/export_d1.py (Quran first, then collections by rank and ord).
 """
@@ -23,10 +25,15 @@ def keys_for(text):
     return arabic.norm(text), arabic.stems(text), cut(arabic.trigrams(text))
 
 
+CHANGE = sys.argv[1] if len(sys.argv) > 1 else "vocative"
+FLAG = {"ya_dagger": "LEGACY_YA_DAGGER", "vocative": "LEGACY_VOCATIVE"}[CHANGE]
+MARKER = {"ya_dagger": "\u0649\u0670", "vocative": "\u0670"}[CHANGE]
+
+
 def both(text):
-    arabic.LEGACY_YA_DAGGER = True
+    setattr(arabic, FLAG, True)
     old = keys_for(text)
-    arabic.LEGACY_YA_DAGGER = False
+    setattr(arabic, FLAG, False)
     return old, keys_for(text)
 
 
@@ -53,16 +60,18 @@ def main():
         if f.startswith("70_reindex_"):
             os.remove(os.path.join(OUT, f))
     w = SqlWriter("70_reindex")
-    w.stmt("CREATE TABLE IF NOT EXISTS reindex_done (id INTEGER PRIMARY KEY);")
+    # One marker table per fix (a row may be re-keyed by more than one fix); never dropped, so re-runs stay safe.
+    done = "reindex_done" if CHANGE == "ya_dagger" else f"reindex_done_{CHANGE}"
+    w.stmt(f"CREATE TABLE IF NOT EXISTS {done} (id INTEGER PRIMARY KEY);")
     changed = 0
     for uid, text, en, idt in units():
-        if not text or "ىٰ" not in text:
+        if not text or MARKER not in text:
             continue
         (on, os_, ot), (nn, ns, nt) = both(text)
         if (on, os_, ot) == (nn, ns, nt):
             continue
         changed += 1
-        todo = f"id = {uid} AND id NOT IN (SELECT id FROM reindex_done)"
+        todo = f"id = {uid} AND id NOT IN (SELECT id FROM {done})"
         # Delete the indexed tokens using the row's current (old) values, swap in the new keys, index them, mark done.
         w.stmt(f"INSERT INTO units_fts(units_fts, rowid, ar_stem, en_text, id_text) SELECT 'delete', id, ar_stem, en_text, id_text FROM units WHERE {todo};")
         w.stmt(f"INSERT INTO units_tri(units_tri, rowid, ar_tri) SELECT 'delete', id, ar_tri FROM units_tri_src WHERE {todo};")
@@ -70,7 +79,7 @@ def main():
         w.stmt(f"UPDATE units_tri_src SET ar_tri = {lit(nt)} WHERE {todo};")
         w.stmt(f"INSERT INTO units_fts(rowid, ar_stem, en_text, id_text) SELECT id, ar_stem, en_text, id_text FROM units WHERE {todo};")
         w.stmt(f"INSERT INTO units_tri(rowid, ar_tri) SELECT id, ar_tri FROM units_tri_src WHERE {todo};")
-        w.stmt(f"INSERT OR IGNORE INTO reindex_done(id) VALUES ({uid});")
+        w.stmt(f"INSERT OR IGNORE INTO {done}(id) VALUES ({uid});")
     w.close()
     print(f"{changed} units re-keyed → {w.files}")
 
