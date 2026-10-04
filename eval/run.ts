@@ -67,7 +67,10 @@ const fmt = (t: number) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${Str
 function toKey(kind: string, collection: string | null, number: string | null, surah: number | null, ayah: number | null): string | null {
   if (kind === 'quran' && surah && ayah) return `quran:${surah}:${ayah}`;
   if (!collection || !number) return null;
-  const c = collectionByAlias(collection) ?? collection.toLowerCase().replace(/[^a-z-]/g, '');
+  // "Sahih al-Bukhari", "Jami' at-Tirmidhi", "Sunan Ibn Majah": try the name, then without its title words.
+  const words = collection.split(/[\s'’-]+/).filter(Boolean);
+  const TITLE = /^(sahih|shahih|sunan|jami|jamiat|musnad|imam|al|at|an|as|ad|ar|ash|the)$/i;
+  const c = collectionByAlias(collection) ?? collectionByAlias(words.filter((w) => !TITLE.test(w)).join('')) ?? collection.toLowerCase().replace(/[^a-z-]/g, '');
   const n = String(number).match(/\d+[a-z]?/i)?.[0];
   return n ? `${c}:${n.toLowerCase()}` : null;
 }
@@ -237,22 +240,25 @@ function summarise(rows: Row[], extra: number, outs: ArmOut[]) {
 
 // ---------------------------------------------------------------- main
 const started = new Date().toISOString();
-const results: Record<string, { runs: ReturnType<typeof summarise>[]; rows: Row[] }> = {};
+const results: Record<string, { runs: ReturnType<typeof summarise>[]; rows: Row[]; preds: Record<string, Pred[]>[] }> = {};
 for (const arm of ARMS) {
-  results[arm] = { runs: [], rows: [] };
+  results[arm] = { runs: [], rows: [], preds: [] };
   for (let run = 0; run < RUNS; run++) {
     const rows: Row[] = [];
     const outs: ArmOut[] = [];
+    const preds: Record<string, Pred[]> = {};
     let extra = 0;
     for (const l of lectures) {
       const out = await ARM_FNS[arm](l);
       const s = score(l, out);
       rows.push(...s.rows);
       outs.push(out);
+      preds[l.id] = out.preds;
       extra += s.extra;
       process.stdout.write(`${arm} run ${run + 1} ${l.id}: ${s.rows.filter((r) => r.status_ok).length}/${s.rows.length} (${out.ms} ms)\n`);
     }
     results[arm].runs.push(summarise(rows, extra, outs));
+    results[arm].preds.push(preds);
     if (run === 0) results[arm].rows = rows;
   }
 }
