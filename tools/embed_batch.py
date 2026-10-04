@@ -7,6 +7,8 @@ Runs on a long-lived machine (our VPS); the batch takes hours and survives a lap
     python3 tools/embed_batch.py status            # poll the jobs
     python3 tools/embed_batch.py upsert            # download finished results → POST /admin/vectors on hadits.net
     python3 tools/embed_batch.py run               # loop: submit while quota allows, poll, upsert; until all done
+    python3 tools/embed_batch.py sync              # files without a batch job: synchronous batchEmbedContents (100/call,
+                                                   # throttled), for when the tier's batch queue stays full
 
 Units: the 9 core books' matn, every ar_prophetic span (the Prophet's words, id "{key}#p"), and the Quran.
 Document format (keep identical at query time): "title: {collection} {number} | text: {matn}".
@@ -124,6 +126,52 @@ def submit():
         print(f"{name}: {file_name} → {job['name']}")
 
 
+SYNC_PER_CALL = 100
+SYNC_CALLS_PER_MIN = 40
+
+
+def sync():
+    manifest = json.load(open(os.path.join(OUT, "manifest.json")))
+    state = load_state()
+    model = f"models/{MODEL}"
+    for name in sorted(x for x in os.listdir(OUT) if x.startswith("requests_")):
+        s = state.get(name, {})
+        if s.get("upserted") or s.get("job"):
+            continue
+        with open(os.path.join(OUT, name), encoding="utf-8") as f:
+            reqs = [json.loads(line) for line in f]
+        pending, done = [], 0
+        for i in range(0, len(reqs), SYNC_PER_CALL):
+            part = reqs[i:i + SYNC_PER_CALL]
+            body = {"requests": [{"model": model, **r["request"]} for r in part]}
+            for attempt in range(8):
+                t = time.time()
+                try:
+                    res = _req("POST", f"{API}/v1beta/{model}:batchEmbedContents", body)
+                    break
+                except RuntimeError as e:
+                    if "429" not in str(e) and "503" not in str(e):
+                        raise
+                    wait = 30 * (attempt + 1)
+                    print(f"  {name}: rate limited, waiting {wait}s", flush=True)
+                    time.sleep(wait)
+            else:
+                raise RuntimeError("gave up after repeated 429s")
+            for r, emb in zip(part, res["embeddings"]):
+                pending.append({"id": r["key"], "values": emb["values"], "metadata": manifest[r["key"]]})
+            if len(pending) >= 500:
+                post_vectors(pending)
+                done += len(pending)
+                pending = []
+            time.sleep(max(0.0, 60 / SYNC_CALLS_PER_MIN - (time.time() - t)))
+        if pending:
+            post_vectors(pending)
+            done += len(pending)
+        state[name] = {"mode": "sync", "upserted": True, "vectors": done}
+        save_state(state)
+        print(time.strftime("%H:%M:%S"), f"{name}: upserted {done} (sync)", flush=True)
+
+
 def run():
     while True:
         submit()
@@ -201,4 +249,4 @@ def upsert():
 
 
 if __name__ == "__main__":
-    {"prepare": prepare, "submit": submit, "status": status, "upsert": upsert, "run": run}[sys.argv[1]]()
+    {"prepare": prepare, "submit": submit, "status": status, "upsert": upsert, "run": run, "sync": sync}[sys.argv[1]]()
