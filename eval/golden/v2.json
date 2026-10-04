@@ -17,7 +17,7 @@
       ],
       "items": {
         "a": { "key": "bukhari:38", "phrase": "من صام رمضان ايمانا واحتسابا غفر له ما تقدم من ذنبه", "expect": { "status": "verbatim", "citation_agrees": true } },
-        "b": { "key": "quran:2:183", "phrase": "يايها الذين امنوا كتب عليكم الصيام كما كتب علي الذين من قبلكم لعلكم تتقون", "expect": { "status": "verbatim", "keys": ["quran:2:183"] } },
+        "b": { "key": "quran:2:183", "phrase": "يا ايها الذين امنوا كتب عليكم الصيام كما كتب علي الذين من قبلكم لعلكم تتقون", "expect": { "status": "verbatim", "keys": ["quran:2:183"] } },
         "c": { "key": "bukhari:1923", "phrase": "تسحروا فان في السحور بركه", "expect": { "status": "verbatim" } },
         "d": { "key": "bukhari:1923", "phrase": "تسحروا فان في السحور بركه", "swap": ["بركه", "شِفَاءً"], "expect": { "status": "misquote" } },
         "m": { "meaning": "puasa itu adalah perisai", "key": "muslim:1151c", "phrase": "الصيام جنه", "expect": { "status": "paraphrase" } },
@@ -78,10 +78,10 @@
         "Ada juga yang sering menyebut sebagai hadits: {{e}}. Ini tidak ada asalnya."
       ],
       "items": {
-        "a": { "key": "quran:39:53", "phrase": "قل يعبادي الذين اسرفوا علي انفسهم لا تقنطوا من رحمه الله", "expect": { "status": "verbatim", "keys": ["quran:39:53"] } },
+        "a": { "key": "quran:39:53", "phrase": "قل يا عبادي الذين اسرفوا علي انفسهم لا تقنطوا من رحمه الله", "expect": { "status": "verbatim", "keys": ["quran:39:53"] } },
         "b": { "key": "ibnmajah:4251", "phrase": "كل بني ادم خطاء وخير الخطايين التوابون", "expect": { "status": "weak_or_disputed" } },
         "c": { "key": "ibnmajah:4250", "phrase": "التايب من الذنب كمن لا ذنب له", "expect": { "status": "weak_or_disputed", "citation_agrees": true } },
-        "d": { "key": "quran:66:8", "phrase": "يايها الذين امنوا توبوا الي الله توبه نصوحا", "expect": { "status": "verbatim", "keys": ["quran:66:8"] } },
+        "d": { "key": "quran:66:8", "phrase": "يا ايها الذين امنوا توبوا الي الله توبه نصوحا", "expect": { "status": "verbatim", "keys": ["quran:66:8"] } },
         "t": { "translit": "innamal a'malu binniyat", "key": "bukhari:1", "phrase": "انما الاعمال بالنيات", "expect": { "status": "verbatim" } },
         "e": { "text": "طلب العلم بعد العصر يعدل عبادة ستين عاما", "expect": { "status": "not_found_in_corpus" } }
       }
