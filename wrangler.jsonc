@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hadits",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [{ "pattern": "hadits.net", "custom_domain": true }],
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  "limits": { "cpu_ms": 120000 },
+  "d1_databases": [
+    { "binding": "CORPUS", "database_name": "hadits-corpus", "database_id": "112bab2e-8ccd-45d4-b2d0-d0b6ede030c0" },
+    { "binding": "APP", "database_name": "hadits-app", "database_id": "182cbb6b-b80b-40cd-ad9f-27a9fa5c2709" }
+  ],
+  "vectorize": [
+    { "binding": "UNITS_INDEX", "index_name": "hadits-units" },
+    { "binding": "LECTURES_INDEX", "index_name": "hadits-lectures" }
+  ],
+  "r2_buckets": [{ "binding": "DATA", "bucket_name": "hadits-data" }],
+  "kv_namespaces": [{ "binding": "CACHE", "id": "b48590fb38464c8ba36fdd516a67c582" }],
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "hadits-jobs" }],
+    "consumers": [{ "queue": "hadits-jobs", "max_batch_size": 50, "max_retries": 3, "dead_letter_queue": "hadits-jobs-dlq" }]
+  },
+  "ai": { "binding": "AI" },
+  "vars": {
+    "CF_ACCOUNT_ID": "c05e7c87bd4a6b1b1520c648405474ba",
+    "AI_GATEWAY_ID": "hadits",
+    "EMBED_MODEL": "gemini-embedding-2",
+    "EMBED_DIM": "1536",
+    "LLM_MODEL": "gemini-3.8-flash",
+    "LLM_MODEL_LITE": "gemini-3.5-flash-lite"
+  },
+  // Secrets (wrangler secret put): GEMINI_API_KEY, ADMIN_TOKEN, CF_AIG_TOKEN (optional: gateway auth token)
+  "observability": { "enabled": true }
+}
