@@ -7,6 +7,8 @@
   "routes": [{ "pattern": "hadits.net", "custom_domain": true }],
   "assets": { "directory": "./dist", "binding": "ASSETS" },
   "limits": { "cpu_ms": 120000 },
+  // Run next to D1 (EEUR): a verify makes several sequential D1 round trips.
+  "placement": { "mode": "smart" },
   "d1_databases": [
     { "binding": "CORPUS", "database_name": "hadits-corpus", "database_id": "112bab2e-8ccd-45d4-b2d0-d0b6ede030c0" },
     { "binding": "APP", "database_name": "hadits-app", "database_id": "182cbb6b-b80b-40cd-ad9f-27a9fa5c2709" }
