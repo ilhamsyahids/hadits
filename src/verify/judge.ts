@@ -13,7 +13,7 @@ Classify each item:
 - "paraphrase": the same verse or report with the same meaning. Wording differs: order, omitted parts, connecting words, a known alternative wording, or a loose retelling. Nothing that changes what is said.
 - "misquote": presented as this text, about the same subject, but a changed, added or dropped word changes the meaning: negation, pronoun or person (you/they), a number or amount, who acts, a different legal or ritual term (zakat vs sadaqah, fard vs sunnah, halal vs haram), or words attributed to the Prophet or to Allah that the source does not contain.
 - "different_text": not the same verse or report. Typical sign: the main subject differs (e.g. cleanliness vs modesty) and the two share only common words such as من، في، الله، الإيمان.
-Give a one-sentence reason in Bahasa Indonesia that names the changed words. Never write out or correct the Quran or hadith yourself; only describe the difference. Confidence is 0..1.`;
+Give a one-sentence reason in {LANGUAGE} that names the changed words. Never write out or correct the Quran or hadith yourself; only describe the difference. Confidence is 0..1.`;
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -35,11 +35,13 @@ const SCHEMA = {
   required: ['items'],
 };
 
-export async function judge(env: Bindings, items: JudgeItem[]): Promise<{ results: Map<number, JudgeResult>; usage: Usage }> {
+const LANGUAGE = { en: 'English', ar: 'Arabic', id: 'Bahasa Indonesia' } as const;
+
+export async function judge(env: Bindings, items: JudgeItem[], lang: keyof typeof LANGUAGE = 'en'): Promise<{ results: Map<number, JudgeResult>; usage: Usage }> {
   if (!items.length) return { results: new Map(), usage: { input: 0, output: 0 } };
   const prompt = items
     .map((it) => `### item ${it.id}\nreference: ${it.reference}\nspoken: ${it.spoken}\nsource: ${it.source}\ndiff: ${it.diff}`)
     .join('\n\n');
-  const { data, usage } = await generateJSON<{ items: JudgeResult[] }>(env, { model: env.JUDGE_MODEL ?? env.LLM_MODEL, system: SYSTEM, prompt, schema: SCHEMA, thinking: 'low' });
+  const { data, usage } = await generateJSON<{ items: JudgeResult[] }>(env, { model: env.JUDGE_MODEL ?? env.LLM_MODEL, system: SYSTEM.replace('{LANGUAGE}', LANGUAGE[lang]), prompt, schema: SCHEMA, thinking: 'low' });
   return { results: new Map(data.items.map((r) => [r.id, r])), usage };
 }

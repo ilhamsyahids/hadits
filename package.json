@@ -8,20 +8,23 @@
     "types": "wrangler types --env-interface CloudflareBindings",
     "typecheck": "astro sync && tsc --noEmit",
     "test": "vitest run",
-    "eval": "tsx eval/run.ts",
+    "eval": "bun eval/run.ts",
     "build": "astro build",
-    "preview": "astro build && wrangler dev"
+    "preview": "astro build && wrangler dev",
+    "golden": "python3 eval/build_golden.py"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.3",
+    "@astrojs/vue": "^7",
     "astro": "^7.3.5",
-    "hono": "^4.13.13"
+    "hono": "^4.13.13",
+    "vue": "^3"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3",
     "wrangler": "^4.147.0"
-  }
+  },
+  "packageManager": "bun@1.4.0"
 }

@@ -1,5 +1,5 @@
 import { cf } from '@astrojs/cloudflare/hono';
-import { middleware, pages } from 'astro/hono';
+import { i18n, middleware, pages } from 'astro/hono';
 import { Hono } from 'hono';
 import { api } from './api';
 import type { AppEnv } from './env';
@@ -9,6 +9,7 @@ const app = new Hono<AppEnv>();
 app.route('/', api);
 app.use(cf());
 app.use(middleware());
+app.use(i18n());
 app.use(pages());
 
 export default {

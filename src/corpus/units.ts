@@ -16,7 +16,7 @@ const COLS = `id, key, kind, collection, number, number_base, chapter_en, chapte
   narrators_json, family_id, parallel_of, same_as_previous_of, anthologies_json, url, sunnah_url`;
 
 /** Just what alignment and ranking need; full rows are loaded only for the chosen matches. */
-export const LIGHT_COLS = 'id, key, kind, collection, number, chapter_en, ar_norm, family_id, grade_status';
+export const LIGHT_COLS = 'id, key, kind, collection, number, chapter_en, chapter_ar, ar_norm, family_id, grade_status';
 
 export async function unitsByKeys(db: D1Database, keys: string[], cols = COLS): Promise<Map<string, UnitRow>> {
   const out = new Map<string, UnitRow>();
@@ -96,12 +96,20 @@ export function sourceUrl(row: UnitRow): string {
   return row.url ?? `https://hadits.net/${row.key}`;
 }
 
-export function reference(row: UnitRow): string {
-  if (row.kind === 'quran') return `QS ${row.chapter_en} ${row.number}`;
-  return `${collection(row.collection)?.id_name ?? row.collection} ${row.number}`;
+export type Lang = 'en' | 'ar' | 'id';
+export const asLang = (s: string | undefined | null): Lang => (s === 'ar' || s === 'id' ? s : 'en');
+
+export function reference(row: UnitRow, lang: Lang = 'en'): string {
+  if (row.kind === 'quran') {
+    if (lang === 'ar') return `${row.chapter_ar ?? ''} ${row.number}`.trim();
+    return `${lang === 'id' ? 'QS' : 'Quran'} ${row.chapter_en} ${row.number}`;
+  }
+  const c = collection(row.collection);
+  const name = !c ? row.collection : lang === 'ar' ? c.ar : lang === 'id' ? c.id_name : c.en;
+  return `${name} ${row.number}`;
 }
 
-export function present(row: UnitRow, opts: { full?: boolean } = {}) {
+export function present(row: UnitRow, opts: { full?: boolean; lang?: Lang } = {}) {
   const c = collection(row.collection);
   return {
     key: row.key,
@@ -109,7 +117,7 @@ export function present(row: UnitRow, opts: { full?: boolean } = {}) {
     collection: row.collection,
     collection_name: c ? { en: c.en, id: c.id_name, ar: c.ar } : null,
     number: row.number,
-    reference: reference(row),
+    reference: reference(row, opts.lang),
     chapter: row.chapter_en || row.chapter_ar ? { en: row.chapter_en, ar: row.chapter_ar } : null,
     section: row.section_en || row.section_ar ? { en: row.section_en, ar: row.section_ar } : null,
     ar: { matn: row.ar_matn, prophetic: row.ar_prophetic, ...(opts.full ? { isnad: row.ar_isnad } : {}) },

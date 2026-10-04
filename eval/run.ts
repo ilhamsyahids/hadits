@@ -1,6 +1,6 @@
 // Three-arm evaluation on the synthetic golden set (eval/golden/lectures.json → ../data/eval/golden-v1.json).
 //
-//   npm run eval -- [--arms dalil,plain,majelisnote] [--runs 1] [--lectures id,id]
+//   bun run eval --arms dalil,plain,majelisnote --runs 3 [--lectures id,id]
 //
 // Arms:
 //   dalil        POST /v1/verify on hadits.net (or HADITS_URL)
@@ -17,7 +17,12 @@ import { stems } from '../src/lib/arabic';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WS = process.env.HADITS_WORKSPACE ?? join(HERE, '..', '..');
-if (existsSync(join(WS, '.env'))) process.loadEnvFile(join(WS, '.env'));
+// Secrets from the workspace .env (Bun only auto-loads ./.env).
+if (existsSync(join(WS, '.env')))
+  for (const line of readFileSync(join(WS, '.env'), 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)=(.*)$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].trim();
+  }
 const HADITS = process.env.HADITS_URL ?? 'https://hadits.net';
 const MODEL = process.env.LLM_MODEL ?? 'gemini-3.8-flash';
 const EXTRACT_MODEL = process.env.LLM_MODEL_LITE ?? 'gemini-3.5-flash-lite';
