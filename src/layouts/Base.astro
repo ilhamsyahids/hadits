@@ -1,14 +1,33 @@
 ---
-interface Props { title: string; description?: string }
-const { title, description = 'Cek ayat dan hadits yang dikutip dalam kajian.' } = Astro.props;
+import { dir, type Locale } from '../i18n/strings';
+
+interface Props { title: string; description?: string; locale: Locale }
+const { title, description = '', locale } = Astro.props;
 ---
 <!doctype html>
-<html lang="id">
+<html lang={locale} dir={dir(locale)}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <link rel="alternate" hreflang="en" href="https://hadits.net/" />
+    <link rel="alternate" hreflang="ar" href="https://hadits.net/ar/" />
     <title>{title}</title>
+    <style is:global>
+      :root {
+        --bg: #fbfaf7; --surface: #ffffff; --text: #1d1b16; --muted: #6b665c; --line: #e6e1d6;
+        --accent: #0f5c4d; --ok: #1f7a4d; --warn: #a15c07; --bad: #a8321c; --grey: #6b665c;
+        --ar-font: 'Amiri', 'Scheherazade New', 'Noto Naskh Arabic', serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #14130f; --surface: #1c1b16; --text: #ece8de; --muted: #a39d90; --line: #2f2d26; --accent: #5cc2a7; --ok: #6fcf97; --warn: #f2b45a; --bad: #ef8a73; --grey: #a39d90; }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+      a { color: var(--accent); }
+      [lang='ar'], .ar { font-family: var(--ar-font); font-size: 1.25em; line-height: 1.9; }
+    </style>
   </head>
   <body>
     <slot />
