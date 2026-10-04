@@ -159,6 +159,11 @@ async function armMajelisNote(l: Lecture): Promise<ArmOut> {
   const tpl = readFileSync(join(WS, 'data', 'eval', `majelisnote-summary-prompt-${l.lang === 'en' ? 'en' : 'id'}.txt`), 'utf8');
   const prompt = tpl.replace('{{title}}', l.title).replace('{{transcript}}', l.segments.map((s) => s.text).join('\n'));
   const note = await gemini(MODEL, '', prompt);
+  if (!note.text.trim()) {
+    // The baseline sometimes returns an empty note: it then claims nothing about any quote.
+    failures.push(`majelisnote/${l.id}: empty note`);
+    return { preds: [], ms: Date.now() - t0, tokens: note.tokens };
+  }
   const ex = await geminiItems(EXTRACT_MODEL, EXTRACT_SYSTEM, note.text, `majelisnote/${l.id}`);
   return {
     preds: toPreds(ex.items),
