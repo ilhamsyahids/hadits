@@ -126,12 +126,12 @@ const toPreds = (items: LlmItem[]): Pred[] =>
   items.map((i) => ({ snippet: i.quote, key: toKey(i.kind, i.collection ?? null, i.number ?? null, i.surah ?? null, i.ayah ?? null), status: i.status, grade: i.grade ?? null }));
 
 // ---------------------------------------------------------------- arms
-async function armDalil(l: Lecture): Promise<ArmOut> {
+const armDalil = (detector?: 'rules' | 'llm' | 'hybrid') => async (l: Lecture): Promise<ArmOut> => {
   const t0 = Date.now();
   const res = await fetch(`${HADITS}/v1/verify`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'user-agent': 'hadits-eval/1.0' },
-    body: JSON.stringify({ transcript: { segments: l.segments }, nocache: true }),
+    body: JSON.stringify({ transcript: { segments: l.segments }, nocache: true, ...(detector ? { detector } : {}) }),
   });
   if (!res.ok) throw new Error(`verify ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const j = (await res.json()) as { refs: { spoken: string; status: Status; match?: { key: string; range?: string[] }; grade_summary?: { status: string }; citation?: { agrees: boolean | null } }[]; usage: { input: number; output: number } };
@@ -140,7 +140,7 @@ async function armDalil(l: Lecture): Promise<ArmOut> {
     ms: Date.now() - t0,
     tokens: j.usage,
   };
-}
+};
 
 const PLAIN_SYSTEM = `You are an expert in hadith sciences and the Quran. Read the lecture transcript and list every Quran verse and every hadith (or saying presented as a hadith) that the speaker quotes or cites.
 For each: copy the Arabic exactly as the speaker said it; give the source (Quran: surah and ayah number; hadith: collection and hadith number); classify the quote as verbatim (matches the source text), paraphrase (same meaning, different wording), misquote (a word changes the meaning), weak_or_disputed (a weak or disputed hadith), not_found_in_corpus (not a real verse or hadith / no known source), or reference (only a citation without quoting); and give the hadith grade.`;
@@ -167,7 +167,9 @@ async function armMajelisNote(l: Lecture): Promise<ArmOut> {
   };
 }
 
-const ARM_FNS: Record<string, (l: Lecture) => Promise<ArmOut>> = { dalil: armDalil, plain: armPlain, majelisnote: armMajelisNote };
+const ARM_FNS: Record<string, (l: Lecture) => Promise<ArmOut>> = {
+  dalil: armDalil(), 'dalil-rules': armDalil('rules'), 'dalil-llm': armDalil('llm'), plain: armPlain, majelisnote: armMajelisNote,
+};
 
 // ---------------------------------------------------------------- scoring
 const stemSet = (s: string) => new Set(stems(s).split(' ').filter((t) => t.length >= 2));
@@ -292,7 +294,7 @@ const metrics: [string, keyof ReturnType<typeof summarise>][] = [
   ['Extra predictions', 'extra_predictions'],
   ['Avg ms per lecture', 'avg_ms_per_lecture'],
 ];
-const names: Record<string, string> = { dalil: 'Dalil', plain: 'Plain LLM', majelisnote: 'MajelisNote (baseline prompt)' };
+const names: Record<string, string> = { dalil: 'Dalil (hybrid)', 'dalil-rules': 'Dalil (rules only)', 'dalil-llm': 'Dalil (LLM extraction only)', plain: 'Plain LLM', majelisnote: 'MajelisNote (baseline prompt)' };
 let md = `# Evaluation\n\nRun ${started} · golden set ${golden.version} (${lectures.length} synthetic lectures, ${lectures.reduce((n, l) => n + l.items.length, 0)} planted items) · ${RUNS} run(s) per arm · model ${MODEL}\n\n`;
 md += `| Metric | ${ARMS.map((a) => names[a] ?? a).join(' | ')} |\n|---|${ARMS.map(() => '---').join('|')}|\n`;
 for (const [label, key] of metrics) md += `| ${label} | ${table(key).join(' | ')} |\n`;
