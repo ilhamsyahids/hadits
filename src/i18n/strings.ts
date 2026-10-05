@@ -138,6 +138,9 @@ const en = {
     translation: 'Translation',
     notFound: 'There is no unit with this key.',
     parallel: 'Repeat narration of',
+    prev: 'Previous',
+    next: 'Next',
+    around: 'Previous and next',
   },
 };
 
@@ -271,6 +274,9 @@ const ar: typeof en = {
     translation: 'الترجمة',
     notFound: 'لا يوجد نص بهذا المفتاح.',
     parallel: 'رواية مكررة لـ',
+    prev: 'السابق',
+    next: 'التالي',
+    around: 'السابق والتالي',
   },
 };
 

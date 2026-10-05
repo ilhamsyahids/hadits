@@ -3,7 +3,7 @@ import { collection, collectionByAlias } from './collections';
 // Read side of the D1 corpus: key resolution, row hydration, and the JSON shape every route returns.
 
 export type UnitRow = {
-  id: number; key: string; kind: 'quran' | 'hadith'; collection: string; number: string; number_base: number | null;
+  id: number; key: string; kind: 'quran' | 'hadith'; collection: string; number: string; number_base: number | null; ord?: number | null;
   chapter_en: string | null; chapter_ar: string | null; section_en: string | null; section_ar: string | null; title_en: string | null;
   ar_isnad: string | null; ar_matn: string; ar_prophetic: string | null; en_isnad?: string | null; en_text: string | null; id_text: string | null;
   ar_norm: string; ar_stem: string; grade_status: string | null; grades_json: string | null; notes_json: string | null;
@@ -11,7 +11,7 @@ export type UnitRow = {
   anthologies_json: string | null; url: string | null; sunnah_url: string | null;
 };
 
-const COLS = `id, key, kind, collection, number, number_base, chapter_en, chapter_ar, section_en, section_ar, title_en,
+const COLS = `id, key, kind, collection, number, number_base, ord, chapter_en, chapter_ar, section_en, section_ar, title_en,
   ar_isnad, ar_matn, ar_prophetic, en_isnad, en_text, id_text, ar_norm, ar_stem, grade_status, grades_json, notes_json,
   narrators_json, family_id, parallel_of, same_as_previous_of, anthologies_json, url, sunnah_url`;
 
@@ -154,6 +154,18 @@ export function present(row: UnitRow, opts: { full?: boolean; lang?: Lang } = {}
         }
       : {}),
   };
+}
+
+/** The hadith before and after this one in its collection's order (collection, ord is indexed). */
+export async function neighbours(db: D1Database, row: UnitRow) {
+  if (row.kind !== 'hadith' || row.ord == null) return { prev: null, next: null };
+  const pick = (op: '<' | '>', agg: 'max' | 'min') =>
+    db
+      .prepare(`SELECT key, collection, number FROM units WHERE collection = ?1 AND ord = (SELECT ${agg}(ord) FROM units WHERE collection = ?1 AND ord ${op} ?2)`)
+      .bind(row.collection, row.ord)
+      .first<{ key: string; collection: string; number: string }>();
+  const [prev, next] = await Promise.all([pick('<', 'max'), pick('>', 'min')]);
+  return { prev, next };
 }
 
 /** Other wordings of the same report (repeat narrations, anthology copies, "like the previous"). */
