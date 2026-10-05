@@ -4,6 +4,8 @@ import type { AppEnv } from '../env';
 import { search } from '../search/search';
 import type { Segment } from '../verify/detect';
 import { type Detector, verify } from '../verify/verify';
+import type { Doc, DocIndexItem } from '../lectures/doc';
+import { guessLang, parseText } from '../lectures/parse';
 
 export const v1 = new Hono<AppEnv>();
 
@@ -60,14 +62,15 @@ v1.post('/verify', async (c) => {
 });
 
 // Sample lectures (tools/demo_lectures.py → KV). The report is a cached /v1/verify run per language.
-type LectureIndex = { id: string; title: string; lang: string; duration: number; segments: number }[];
-type Lecture = { id: string; title: string; lang: string; duration: number; synthetic_timing: boolean; segments: (Segment & { section?: string | null })[] };
+type LectureIndex = DocIndexItem[];
 
 v1.get('/lectures', async (c) => c.json((await c.env.CACHE.get<LectureIndex>('lectures:index', 'json')) ?? []));
 
 v1.get('/lectures/:id', async (c) => {
-  const lecture = await c.env.CACHE.get<Lecture>(`lecture:${c.req.param('id')}`, 'json');
-  return lecture ? c.json(lecture) : c.json({ error: 'not_found' }, 404);
+  const lecture = await c.env.CACHE.get<Doc>(`lecture:${c.req.param('id')}`, 'json');
+  if (!lecture) return c.json({ error: 'not_found' }, 404);
+  const { submitted, ...rest } = lecture;
+  return c.json({ ...rest, ...(submitted ? { expires: submitted.expires } : {}) });
 });
 
 v1.get('/lectures/:id/report', async (c) => {
@@ -76,10 +79,69 @@ v1.get('/lectures/:id/report', async (c) => {
   const key = `report:${VERIFY_VERSION}:${id}:${lang}`;
   const cached = await c.env.CACHE.get(key, 'json');
   if (cached) return c.json({ ...(cached as object), cached: true });
-  const lecture = await c.env.CACHE.get<Lecture>(`lecture:${id}`, 'json');
+  const lecture = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
   if (!lecture) return c.json({ error: 'not_found' }, 404);
   const segments = lecture.segments.map(({ start, end, text }) => ({ start, end, text }));
   const res = await verify(c.env, segments, { lang });
   if (!res.degraded.length) c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(res), { expirationTtl: 60 * 60 * 24 * 30 }));
   return c.json(res);
+});
+
+// A reader's own lecture or article: stored for 30 days under an unlisted id, then reported like a sample.
+// Only the submitter holds the token that deletes it (only its hash is stored). The same text maps to the same id.
+const DOC_TTL = 60 * 60 * 24 * 30;
+const DOC_MAX_CHARS = 100_000;
+const DOC_PER_HOUR = 10;
+const randomId = (bytes: number) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((x) => x.toString(36).padStart(2, '0').slice(-2)).join('');
+
+v1.post('/documents', async (c) => {
+  const body = await c.req.json<{ text?: string; title?: string; filename?: string }>().catch(() => ({}) as { text?: string; title?: string; filename?: string });
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (text.length < 40) return c.json({ error: 'too_short' }, 400);
+  if (text.length > DOC_MAX_CHARS) return c.json({ error: 'too_long', max: DOC_MAX_CHARS }, 413);
+
+  const textHash = await hash(text);
+  const existing = await c.env.CACHE.get<{ id: string }>(`doc:hash:${textHash}`, 'json');
+  if (existing && (await c.env.CACHE.get(`lecture:${existing.id}`))) return c.json({ id: existing.id, token: null });
+
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = `rl:doc:${ip}:${Math.floor(Date.now() / 3_600_000)}`;
+  const n = Number((await c.env.CACHE.get(rl)) ?? 0);
+  if (n >= DOC_PER_HOUR) return c.json({ error: 'rate_limited' }, 429);
+  await c.env.CACHE.put(rl, String(n + 1), { expirationTtl: 7200 });
+
+  const parsed = parseText(text);
+  if (!parsed.segments.length) return c.json({ error: 'too_short' }, 400);
+  if (parsed.segments.length > MAX_SEGMENTS) return c.json({ error: 'too_long', max: DOC_MAX_CHARS }, 413);
+  const fromFile = body.filename?.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').trim();
+  const first = parsed.segments[0].text;
+  const opening = first.length <= 70 ? first : `${first.slice(0, 70).replace(/\s+\S*$/, '')}…`;
+  const title = (body.title?.trim() || parsed.title || fromFile || opening).slice(0, 160);
+  const id = `u${randomId(8)}`;
+  const token = randomId(24);
+  const created = Date.now();
+  const doc: Doc = {
+    id, title, lang: guessLang(text), kind: parsed.timing === 'audio' ? 'lecture' : 'text', timing: parsed.timing,
+    duration: parsed.timing === 'audio' ? parsed.segments.at(-1)!.end : parsed.segments.length,
+    source: null, submitted: { created, expires: created + DOC_TTL * 1000, token_hash: await hash(token), text_hash: textHash }, segments: parsed.segments,
+  };
+  await Promise.all([
+    c.env.CACHE.put(`lecture:${id}`, JSON.stringify(doc), { expirationTtl: DOC_TTL }),
+    c.env.CACHE.put(`doc:hash:${textHash}`, JSON.stringify({ id }), { expirationTtl: DOC_TTL }),
+  ]);
+  return c.json({ id, token, title, expires: doc.submitted!.expires }, 201);
+});
+
+v1.delete('/documents/:id', async (c) => {
+  const id = c.req.param('id');
+  const token = c.req.header('authorization')?.replace(/^Bearer\s+/i, '') ?? '';
+  const doc = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
+  if (!doc?.submitted) return c.json({ error: 'not_found' }, 404);
+  if (!token || (await hash(token)) !== doc.submitted.token_hash) return c.json({ error: 'forbidden' }, 403);
+  await Promise.all([
+    c.env.CACHE.delete(`lecture:${id}`),
+    c.env.CACHE.delete(`doc:hash:${doc.submitted.text_hash}`),
+    ...['en', 'ar'].map((l) => c.env.CACHE.delete(`report:${VERIFY_VERSION}:${id}:${l}`)),
+  ]);
+  return c.json({ deleted: id });
 });

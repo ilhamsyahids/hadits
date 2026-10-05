@@ -214,6 +214,8 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
 
 <style scoped>
 .state { color: var(--muted); display: flex; align-items: center; gap: 10px; padding: 32px 0; margin: 0; flex-wrap: wrap; }
+.state[role='status'] { display: grid; grid-template-columns: auto 1fr; align-items: start; }
+.state[role='status'] .spinner { margin-top: 4px; }
 .error { color: var(--warn); }
 .retry { border: 1px solid var(--line); background: transparent; border-radius: var(--r-small); padding: 6px 14px; min-height: 40px; cursor: pointer; }
 .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }
