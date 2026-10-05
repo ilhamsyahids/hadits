@@ -169,6 +169,17 @@ export async function neighbours(db: D1Database, row: UnitRow) {
   return { prev, next };
 }
 
+/** Latin names of narrators (tools/narrator_names.py: Hadith Unlocked's spelling, paired with sunnah.com ids). */
+export async function narratorNames(db: D1Database, ids: number[]): Promise<Map<number, string>> {
+  if (!ids.length) return new Map();
+  const { results } = await db
+    .prepare(`SELECT id, name_en FROM narrator WHERE name_en IS NOT NULL AND id IN (${ids.map(() => '?').join(',')})`)
+    .bind(...ids)
+    .all<{ id: number; name_en: string }>()
+    .catch(() => ({ results: [] as { id: number; name_en: string }[] }));
+  return new Map(results.map((r) => [r.id, r.name_en]));
+}
+
 /** Other wordings of the same report (repeat narrations, anthology copies, "like the previous"). */
 export async function family(db: D1Database, row: UnitRow, limit = 12) {
   if (!row.family_id) return [];

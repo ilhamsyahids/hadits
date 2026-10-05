@@ -64,7 +64,7 @@ CREATE INDEX units_family ON units(family_id);
 CREATE INDEX units_parallel ON units(parallel_of);
 CREATE TABLE anthology_entry (key TEXT PRIMARY KEY, collection TEXT, number TEXT, source_key TEXT, url TEXT, title_en TEXT);
 CREATE INDEX anthology_source ON anthology_entry(source_key);
-CREATE TABLE narrator (id INTEGER PRIMARY KEY, name_ar TEXT, url TEXT, mentions INTEGER);
+CREATE TABLE narrator (id INTEGER PRIMARY KEY, name_ar TEXT, url TEXT, mentions INTEGER, name_en TEXT, name_en_chains INTEGER);
 CREATE TABLE sunnah_book (collection TEXT, book_number TEXT, name_en TEXT, name_ar TEXT, hadith_start INTEGER, hadith_end INTEGER, hadith_count INTEGER, PRIMARY KEY (collection, book_number));
 CREATE TABLE sunnah_chapter (collection TEXT, book_number TEXT, chapter_id TEXT, chapter_number TEXT, title_en TEXT, title_ar TEXT, intro_en TEXT, intro_ar TEXT, ending_en TEXT, ending_ar TEXT, PRIMARY KEY (collection, book_number, chapter_id));
 CREATE TABLE corpus_meta (k TEXT PRIMARY KEY, v TEXT);
