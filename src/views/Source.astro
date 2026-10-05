@@ -6,6 +6,7 @@ import { SURAHS } from '../corpus/surahs';
 import { collection } from '../corpus/collections';
 import { chapters } from '../corpus/browse';
 import { prophetic } from '../lib/prophetic';
+import { chainNames } from '../lib/chain';
 import ShareButton from '../components/ShareButton.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
@@ -103,7 +104,7 @@ if (row?.kind === 'quran') {
             {u.en_isnad && (
               <details class="isnad" open>
                 <summary>{t.sourcePage.chain}</summary>
-                <ol class="chain-en">{u.en_isnad.split(/\s*>\s*/).map((n) => <li>{n}</li>)}</ol>
+                <ol class="chain-en">{chainNames(u.en_isnad).map((n) => <li>{n}</li>)}</ol>
               </details>
             )}
             <p class="translation">{prophetic(u.en, 'en').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}</p>
