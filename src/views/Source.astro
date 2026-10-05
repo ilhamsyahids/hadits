@@ -4,6 +4,8 @@ import AppShell from '../layouts/AppShell.astro';
 import { family, present, resolveKey } from '../corpus/units';
 import { SURAHS } from '../corpus/surahs';
 import { collection } from '../corpus/collections';
+import { chapters } from '../corpus/browse';
+import { prophetic } from '../lib/prophetic';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Source page (F3): hadits.net/{key}. Every word of scripture here comes from D1.
@@ -20,6 +22,12 @@ type Anth = { collection: string; number: string };
 const anthologies = (u?.anthologies ?? []) as Anth[];
 const href = (p: string) => localePath(locale, p);
 
+// Where this unit sits, for the breadcrumb: collection › chapter (hadith) or surah (Quran).
+const coll = row ? collection(row.collection) : undefined;
+const chapterList = row?.kind === 'hadith' ? await chapters(env.CORPUS, env.CACHE, row.collection).catch(() => []) : [];
+const chapterIndex = row ? chapterList.find((c) => c.en === row.chapter_en && c.ar === row.chapter_ar)?.index : undefined;
+const site = u?.url ? new URL(u.url).hostname.replace(/^www\./, '') : null;
+
 let prev: string | null = null, next: string | null = null;
 if (row?.kind === 'quran') {
   const [, s, a] = row.key.split(':').map(Number);
@@ -31,13 +39,35 @@ if (row?.kind === 'quran') {
 ---
 <AppShell title={`${u?.reference ?? unitKey} · ${t.brand}`} description={u?.en?.slice(0, 160) ?? t.intro} locale={locale} path={`/${unitKey}`}>
   <article class="page">
-    <a class="back" href={href('/')}>{t.sourcePage.back}</a>
+    <nav class="crumbs" aria-label={t.sourcePage.crumbs}>
+      {row?.kind === 'quran' ? (
+        <>
+          <a href={href('/quran')}>{t.browse.quran}</a>
+          <span aria-hidden="true">›</span>
+          <a href={href(`/quran/${row.key.split(':')[1]}#a${row.key.split(':')[2]}`)}>{locale === 'ar' ? row.chapter_ar : row.chapter_en}</a>
+        </>
+      ) : row && coll ? (
+        <>
+          <a href={href('/hadith')}>{t.browse.hadith}</a>
+          <span aria-hidden="true">›</span>
+          <a href={href(`/hadith/${row.collection}`)}>{locale === 'ar' ? coll.ar : coll.en}</a>
+          {chapterIndex && (
+            <>
+              <span aria-hidden="true">›</span>
+              <a href={href(`/hadith/${row.collection}/${chapterIndex}`)} dir="auto">{(locale === 'ar' ? row.chapter_ar ?? row.chapter_en : row.chapter_en ?? row.chapter_ar)}</a>
+            </>
+          )}
+        </>
+      ) : (
+        <a href={href('/')}>{t.sourcePage.back}</a>
+      )}
+    </nav>
     {!u ? <p class="muted">{t.sourcePage.notFound}</p> : (
       <>
         <header>
           <h1>{u.reference}</h1>
-          {(u.chapter || u.section) && (
-            <p class="muted" dir="auto">{[locale === 'ar' ? u.chapter?.ar : u.chapter?.en, locale === 'ar' ? u.section?.ar : u.section?.en].filter(Boolean).join(' › ')}</p>
+          {u.section && (locale === 'ar' ? u.section.ar : u.section.en) && (
+            <p class="muted" dir="auto">{locale === 'ar' ? u.section.ar : u.section.en}</p>
           )}
           {u.parallel_of && <p class="muted">{t.sourcePage.parallel} <a href={href(`/${u.parallel_of}`)}>{u.parallel_of}</a></p>}
         </header>
@@ -48,7 +78,9 @@ if (row?.kind === 'quran') {
             <p class="scripture small" lang="ar">{u.ar.isnad}</p>
           </details>
         )}
-        <p class="scripture main" lang="ar">{u.ar.matn}</p>
+        <p class={`scripture main${u.kind === 'quran' ? ' quran' : ''}`} lang="ar">
+          {prophetic(u.ar.matn, 'ar').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}
+        </p>
         {locale === 'en' && u.en && (
           <section>
             <h2>{t.sourcePage.translation}</h2>
@@ -58,7 +90,7 @@ if (row?.kind === 'quran') {
                 <ol class="chain-en">{u.en_isnad.split(/\s*>\s*/).map((n) => <li>{n}</li>)}</ol>
               </details>
             )}
-            <p class="translation">{u.en}</p>
+            <p class="translation">{prophetic(u.en, 'en').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}</p>
           </section>
         )}
 
@@ -66,17 +98,28 @@ if (row?.kind === 'quran') {
           <section>
             <h2>{t.gradedBy}</h2>
             {u.grades.length ? (
-              <table>
-                <tbody>
-                  {u.grades.map((g) => (
-                    <tr>
-                      <th scope="row">{g.grader}</th>
-                      <td>{g.grade}{g.conflict && <span class="warn"> ⚠</span>}</td>
-                      <td class="muted">{g.sources.join(', ')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div class="grades">
+                <label class="toggle"><input type="checkbox" class="show-sources" /> {t.sourcePage.showGradeSources}</label>
+                <table>
+                  <tbody>
+                    {u.grades.map((g) => (
+                      <tr>
+                        <th scope="row">{g.grader}</th>
+                        <td>
+                          {g.grade}
+                          {g.via && <span class="via">{t.sourcePage.gradeVia.split('{via}')[0]}<a href={href(`/${g.via}`)}>{g.via}</a>{t.sourcePage.gradeVia.split('{via}')[1]}</span>}
+                          {g.others?.map((o) => (
+                            <span class="other">{o.via && o.via !== g.via
+                              ? t.sourcePage.otherGradeVia.replace('{via}', o.via).replace('{grade}', o.grade)
+                              : t.sourcePage.otherGrade.replace('{grade}', o.grade).replace('{sources}', o.sources.join(', '))}</span>
+                          ))}
+                        </td>
+                        <td class="src">{g.sources.join(', ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : <p class="muted">{t.noGrade}</p>}
           </section>
         )}
@@ -86,7 +129,7 @@ if (row?.kind === 'quran') {
             <h2>{t.variants}</h2>
             <ul class="family">
               {fam.map((f) => (
-                <li><a href={href(`/${f.key}`)}>{f.collection_name} {f.number}</a><span class="scripture tiny" lang="ar">{f.ar}</span></li>
+                <li><a href={href(`/${f.key}`)}>{f.collection_name} {f.number}</a><span class="scripture tiny" lang="ar">{prophetic(f.ar, 'ar').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}</span></li>
               ))}
             </ul>
           </section>
@@ -110,7 +153,7 @@ if (row?.kind === 'quran') {
 
         <nav class="foot">
           {prev && <a href={href(`/${prev}`)} rel="prev">{prev.replace('quran:', '')}</a>}
-          <a href={u.url} target="_blank" rel="noopener">{t.external}</a>
+          {u.url && <a href={u.url} target="_blank" rel="noopener">{t.sourcePage.viewOn.replace('{site}', site ?? '')}</a>}
           {next && <a href={href(`/${next}`)} rel="next">{next.replace('quran:', '')}</a>}
         </nav>
       </>
@@ -120,7 +163,14 @@ if (row?.kind === 'quran') {
 
 <style>
   .page { max-width: 820px; margin: 0 auto; padding-top: 16px; }
-  .back { color: var(--muted); text-underline-offset: 3px; display: inline-block; padding: 10px 0; }
+  .crumbs { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; color: var(--muted); padding: 10px 0; }
+  .crumbs a { color: var(--muted); text-underline-offset: 3px; }
+  /* Grade sources are hidden until the reader asks for them (CSS only, no script). */
+  .grades .src { display: none; color: var(--muted); }
+  .grades:has(.show-sources:checked) .src { display: table-cell; }
+  .toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 0.9rem; min-height: 36px; cursor: pointer; }
+  .other { display: block; color: var(--warn); font-size: 0.88rem; }
+  .via { display: block; color: var(--muted); font-size: 0.85rem; }
   h1 { font-size: 1.8rem; font-weight: 500; margin: 8px 0 4px; letter-spacing: -0.01em; }
   h2 { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin: 32px 0 10px; }
   .muted { color: var(--muted); margin: 0; }
