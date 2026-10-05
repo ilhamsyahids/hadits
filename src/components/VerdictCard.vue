@@ -15,7 +15,7 @@ export type Verdict = {
   start: number;
   reason?: string;
   meaning?: boolean;
-  match?: { key: string; reference: string; url: string; kind: string; ar: { matn: string }; en?: string | null; en_isnad?: string | null; range?: string[] };
+  match?: { key: string; reference: string; url: string; kind: string; ar: { matn: string; said?: [number, number][] }; en?: string | null; en_isnad?: string | null; range?: string[] };
   diff?: Op[];
   grades?: Grade[];
   grade_summary?: { status: string; note?: string };
@@ -54,7 +54,7 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
       <div v-if="v.match">
         <h3>{{ t.source }}</h3>
         <p class="scripture" lang="ar" :class="{ clamp: long && !full, quran: v.match.kind === 'quran' }">
-          <template v-for="(p, i) in prophetic(v.match.ar.matn, 'ar')" :key="i"><span v-if="p.prophetic" class="prophetic">{{ p.text }}</span><template v-else>{{ p.text }}</template></template>
+          <template v-for="(p, i) in prophetic(v.match.ar.matn, 'ar', v.match.ar.said)" :key="i"><span v-if="p.prophetic" class="prophetic">{{ p.text }}</span><template v-else>{{ p.text }}</template></template>
         </p>
         <button v-if="long" type="button" class="link" @click="full = !full">{{ full ? '−' : '+' }} {{ v.match.reference }}</button>
         <template v-if="v.match.en && lang === 'en'">

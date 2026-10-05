@@ -1,5 +1,6 @@
 import { collection, COLLECTIONS, CORE } from './collections';
 import { SURAHS } from './surahs';
+import { saidRanges, type Range } from '../lib/prophetic';
 
 // Listings for the Quran and hadith browsing pages. Quran units are ids 1..6236 in mushaf order (tools/export_d1.py),
 // so a surah is an id range. Hadith listings group a collection by chapter; results are cached in KV (the corpus
@@ -54,12 +55,12 @@ export function chapters(db: D1Database, kv: KVNamespace, coll: string): Promise
   });
 }
 
-export type HadithItem = { key: string; number: string; ar_matn: string; en_text: string | null; grade_status: string | null; section_en: string | null };
+export type HadithItem = { key: string; number: string; ar_matn: string; said: Range[]; en_text: string | null; grade_status: string | null; section_en: string | null };
 
 export async function chapterHadith(db: D1Database, coll: string, ch: Chapter): Promise<HadithItem[]> {
   const { results } = await db
-    .prepare('SELECT key, number, ar_matn, en_text, grade_status, section_en FROM units WHERE collection = ? AND chapter_en IS ? AND chapter_ar IS ? ORDER BY ord LIMIT 500')
+    .prepare('SELECT key, number, ar_matn, ar_marked, en_text, grade_status, section_en FROM units WHERE collection = ? AND chapter_en IS ? AND chapter_ar IS ? ORDER BY ord LIMIT 500')
     .bind(coll, ch.en, ch.ar)
-    .all<HadithItem>();
-  return results;
+    .all<Omit<HadithItem, 'said'> & { ar_marked: string | null }>();
+  return results.map(({ ar_marked, ...h }) => ({ ...h, said: saidRanges(h.ar_matn, ar_marked) }));
 }
