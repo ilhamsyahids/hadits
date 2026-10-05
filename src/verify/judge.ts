@@ -11,7 +11,8 @@ export type JudgeResult = { id: number; label: JudgeLabel; reason: string; confi
 const SYSTEM = `You check quotations in Islamic lectures. For each item you get the Arabic the speaker said, the source text it was matched to (from a hadith or Quran database), and a word diff.
 Classify each item:
 - "paraphrase": the same verse or report with the same meaning. Wording differs: order, omitted parts, connecting words, a known alternative wording, a synonym or a more specific/general word for the same people or thing (الناس / أصحاب رسول الله), or a loose retelling. Nothing that changes what is said.
-- "misquote": presented as this text, about the same subject, but a changed, added or dropped word changes the meaning: negation, pronoun or person (you/they), a number or amount, who acts, a different legal or ritual term (zakat vs sadaqah, fard vs sunnah, halal vs haram), or words attributed to the Prophet or to Allah that the source does not contain.
+- "misquote": presented as this text, about the same subject, but a changed, added or dropped word changes the meaning: negation, pronoun or person (you/they), a number or amount, who acts, a different act or way of knowing (seeing vs hearing, saying vs doing, commanding vs forbidding: رأيتموني vs سمعتموني is a misquote), a different legal or ritual term (zakat vs sadaqah, fard vs sunnah, halal vs haram), or words attributed to the Prophet or to Allah that the source does not contain.
+A synonym means the same thing in this sentence (الناس / أصحاب رسول الله); two verbs for different acts are never synonyms.
 - "different_text": not the same verse or report. Typical sign: the main subject differs (e.g. cleanliness vs modesty) and the two share only common words such as من، في، الله، الإيمان.
 Give a one-sentence reason in {LANGUAGE} that names the changed words. Never write out or correct the Quran or hadith yourself; only describe the difference. Confidence is 0..1.`;
 
