@@ -4,6 +4,7 @@ import AppShell from '../layouts/AppShell.astro';
 import { chapterHadith, chapters } from '../corpus/browse';
 import { collection } from '../corpus/collections';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
+import { prophetic } from '../lib/prophetic';
 
 interface Props { locale: Locale; id: string; index: number }
 const { locale, id, index } = Astro.props;
@@ -30,8 +31,8 @@ const tone = (g: string | null) => (['daif', 'mawdu', 'disputed'].includes(g ?? 
                 <a href={href(`/${h.key}`)}>{meta ? (locale === 'ar' ? meta.ar : meta.en) : id} {h.number}</a>
                 <span class={`grade ${tone(h.grade_status)}`}><span class="mark" aria-hidden="true"></span>{t.gradeStatus[h.grade_status ?? 'ungraded'] ?? h.grade_status}</span>
               </p>
-              <p class="scripture clamp" lang="ar">{h.ar_matn}</p>
-              {locale === 'en' && h.en_text && <p class="en clamp2">{h.en_text}</p>}
+              <p class="scripture clamp" lang="ar">{prophetic(h.ar_matn, 'ar').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}</p>
+              {locale === 'en' && h.en_text && <p class="en clamp2">{prophetic(h.en_text, 'en').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}</p>}
             </li>
           ))}
         </ol>

@@ -27,7 +27,7 @@ const href = (p: string) => localePath(locale, p);
           {ayat.map((a) => (
             <li id={`a${a.number.split(':')[1]}`}>
               <a class="num" href={href(`/${a.key}`)}>{a.number}</a>
-              <p class="scripture" lang="ar">{a.ar_matn}</p>
+              <p class="scripture quran" lang="ar">{a.ar_matn}</p>
               {locale === 'en' && a.en_text && <p class="en">{a.en_text}</p>}
             </li>
           ))}
