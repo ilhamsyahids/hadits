@@ -20,6 +20,7 @@ CREATE TABLE units (
   family_id TEXT, parallel_of TEXT, same_as_previous_of TEXT, anthologies_json TEXT, source_matches_json TEXT,
   flags_json TEXT, url TEXT, sunnah_url TEXT);
 CREATE INDEX units_coll_num ON units(collection, number_base, number);
+CREATE INDEX units_coll_ord ON units(collection, ord);
 CREATE INDEX units_family ON units(family_id);
 CREATE INDEX units_parallel ON units(parallel_of);
 CREATE TABLE anthology_entry (key TEXT PRIMARY KEY, collection TEXT, number TEXT, source_key TEXT, url TEXT, title_en TEXT);

@@ -1,7 +1,7 @@
 ---
 import { env } from 'cloudflare:workers';
 import AppShell from '../layouts/AppShell.astro';
-import { family, present, resolveKey } from '../corpus/units';
+import { family, neighbours, present, reference, resolveKey } from '../corpus/units';
 import { SURAHS } from '../corpus/surahs';
 import { collection } from '../corpus/collections';
 import { chapters } from '../corpus/browse';
@@ -28,13 +28,22 @@ const chapterList = row?.kind === 'hadith' ? await chapters(env.CORPUS, env.CACH
 const chapterIndex = row ? chapterList.find((c) => c.en === row.chapter_en && c.ar === row.chapter_ar)?.index : undefined;
 const site = u?.url ? new URL(u.url).hostname.replace(/^www\./, '') : null;
 
-let prev: string | null = null, next: string | null = null;
+// Previous and next: the neighbouring ayah (across surahs), or the neighbouring hadith in the collection's order.
+type Step = { key: string; label: string } | null;
+let prev: Step = null, next: Step = null;
 if (row?.kind === 'quran') {
   const [, s, a] = row.key.split(':').map(Number);
-  if (a > 1) prev = `quran:${s}:${a - 1}`;
-  else if (s > 1) prev = `quran:${s - 1}:${SURAHS[s - 2][3]}`;
-  if (a < SURAHS[s - 1][3]) next = `quran:${s}:${a + 1}`;
-  else if (s < 114) next = `quran:${s + 1}:1`;
+  const ayah = (k: string) => ({ key: `quran:${k}`, label: k });
+  if (a > 1) prev = ayah(`${s}:${a - 1}`);
+  else if (s > 1) prev = ayah(`${s - 1}:${SURAHS[s - 2][3]}`);
+  if (a < SURAHS[s - 1][3]) next = ayah(`${s}:${a + 1}`);
+  else if (s < 114) next = ayah(`${s + 1}:1`);
+} else if (row) {
+  const n = await neighbours(env.CORPUS, row).catch(() => ({ prev: null, next: null }));
+  const step = (r: { key: string; collection: string; number: string } | null) =>
+    r ? { key: r.key, label: reference({ ...row, ...r }, locale) } : null;
+  prev = step(n.prev);
+  next = step(n.next);
 }
 ---
 <AppShell title={`${u?.reference ?? unitKey} · ${t.brand}`} description={u?.en?.slice(0, 160) ?? t.intro} locale={locale} path={`/${unitKey}`}>
@@ -151,10 +160,10 @@ if (row?.kind === 'quran') {
           </section>
         )}
 
-        <nav class="foot">
-          {prev && <a href={href(`/${prev}`)} rel="prev">{prev.replace('quran:', '')}</a>}
-          {u.url && <a href={u.url} target="_blank" rel="noopener">{t.sourcePage.viewOn.replace('{site}', site ?? '')}</a>}
-          {next && <a href={href(`/${next}`)} rel="next">{next.replace('quran:', '')}</a>}
+        <nav class="foot" aria-label={t.sourcePage.around}>
+          {prev ? <a href={href(`/${prev.key}`)} rel="prev" class="step"><small>{t.sourcePage.prev}</small>{prev.label}</a> : <span />}
+          {u.url && <a href={u.url} target="_blank" rel="noopener" class="out">{t.sourcePage.viewOn.replace('{site}', site ?? '')}</a>}
+          {next ? <a href={href(`/${next.key}`)} rel="next" class="step next"><small>{t.sourcePage.next}</small>{next.label}</a> : <span />}
         </nav>
       </>
     )}
@@ -192,6 +201,11 @@ if (row?.kind === 'quran') {
   .chain li:not(:last-child)::after { content: '←'; color: var(--subtle); margin-inline-start: 6px; }
   .links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
   .foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .foot { align-items: center; }
   .foot a { color: var(--muted); text-underline-offset: 3px; padding: 10px 0; }
+  .foot .step { display: flex; flex-direction: column; color: var(--text); text-decoration: none; min-width: 0; }
+  .foot .step small { color: var(--muted); font-size: 0.82rem; }
+  .foot .step:hover { text-decoration: underline; }
+  .foot .next { text-align: end; }
   @media (max-width: 560px) { th, td { display: block; padding: 4px 0; border: 0; } tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); } }
 </style>
