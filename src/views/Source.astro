@@ -88,7 +88,7 @@ if (row?.kind === 'quran') {
           </details>
         )}
         <p class={`scripture main${u.kind === 'quran' ? ' quran' : ''}`} lang="ar">
-          {prophetic(u.ar.matn, 'ar').map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}
+          {prophetic(u.ar.matn, 'ar', u.ar.said).map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}
         </p>
         {locale === 'en' && u.en && (
           <section>
