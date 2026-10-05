@@ -172,6 +172,9 @@ function cueStart(text: string, from: number, numStart: number): number {
   const window = text.slice(from, numStart);
   const cue = window.search(/\b(HR|H\.R|QS|Q\.S|riwayat|diriwayatkan|surah|surat|shahih|sahih|sunan|musnad|narrated|reported)\b/i);
   if (cue >= 0) return from + cue;
-  const lastBreak = Math.max(window.lastIndexOf('.'), window.lastIndexOf(','), window.lastIndexOf('('));
-  return from + (lastBreak >= 0 ? lastBreak + 1 : 0) + (window.slice(lastBreak + 1).match(/^\s*/)?.[0].length ?? 0);
+  // "No." is an abbreviation, not the end of a sentence; a joining word ("dan Muslim") is not part of the citation.
+  const plain = window.replace(/\b(No|Nomor|no)\./g, '$1 ');
+  const lastBreak = Math.max(plain.lastIndexOf('.'), plain.lastIndexOf(','), plain.lastIndexOf('('));
+  const rest = window.slice(lastBreak + 1);
+  return from + lastBreak + 1 + (rest.match(/^\s*(?:(?:dan|and|serta|&|و)\s+)?/)?.[0].length ?? 0);
 }
