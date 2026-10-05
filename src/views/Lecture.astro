@@ -1,0 +1,35 @@
+---
+import { env } from 'cloudflare:workers';
+import LectureReport from '../components/LectureReport.vue';
+import AppShell from '../layouts/AppShell.astro';
+import { STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale; id: string }
+const { locale, id } = Astro.props;
+const t = STRINGS[locale];
+type Lecture = { id: string; title: string; lang: string; duration: number; synthetic_timing: boolean; segments: unknown[] };
+const lecture = await env.CACHE.get<Lecture>(`lecture:${id}`, 'json').catch(() => null);
+if (!lecture) Astro.response.status = 404;
+---
+<AppShell title={`${lecture?.title ?? t.lectures.heading} · ${t.brand}`} description={t.lectures.intro} locale={locale} path={`/lectures/${id}`} active="lectures">
+  <section class="page">
+    {lecture ? (
+      <>
+        <h1 dir="auto" lang={lecture.lang}>{lecture.title}</h1>
+        <p class="meta">
+          {t.lectures.langName[lecture.lang] ?? lecture.lang} · {Math.round(lecture.duration / 60)} {t.lectures.minutes}
+          {lecture.synthetic_timing && <span> · {t.report.estimated}</span>}
+        </p>
+        <LectureReport client:load id={id} duration={lecture.duration} t={t} lang={locale} />
+      </>
+    ) : (
+      <p class="meta">{t.lectures.empty}</p>
+    )}
+  </section>
+</AppShell>
+
+<style>
+  .page { max-width: 920px; margin: 0 auto; padding-top: 24px; }
+  h1 { font-size: 1.8rem; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); margin: 0 0 12px; }
+</style>

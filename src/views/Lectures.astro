@@ -1,0 +1,43 @@
+---
+import { env } from 'cloudflare:workers';
+import AppShell from '../layouts/AppShell.astro';
+import { localePath, STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+type Item = { id: string; title: string; lang: string; duration: number; segments: number };
+const lectures = (await env.CACHE.get<Item[]>('lectures:index', 'json').catch(() => null)) ?? [];
+---
+<AppShell title={`${t.lectures.heading} · ${t.brand}`} description={t.lectures.intro} locale={locale} path="/lectures" active="lectures">
+  <section class="page">
+    <h1>{t.lectures.heading}</h1>
+    <p class="intro">{t.lectures.intro}</p>
+    {lectures.length === 0 && <p class="empty">{t.lectures.empty}</p>}
+    <ul class="list">
+      {lectures.map((l) => (
+        <li>
+          <a href={localePath(locale, `/lectures/${l.id}`)}>
+            <span class="title" dir="auto" lang={l.lang}>{l.title}</span>
+            <span class="meta">{t.lectures.langName[l.lang] ?? l.lang} · {Math.round(l.duration / 60)} {t.lectures.minutes} · {l.segments} {t.lectures.segments}</span>
+            <span class="open">{t.lectures.open}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</AppShell>
+
+<style>
+  .page { max-width: 820px; margin: 0 auto; padding-top: 24px; }
+  h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .intro { color: var(--muted); margin: 0 0 28px; }
+  .empty { color: var(--muted); }
+  .list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .list a { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); text-decoration: none; }
+  .list a:hover { border-color: var(--muted); }
+  .title { font-size: 1.15rem; font-weight: 500; grid-column: 1; }
+  .meta { color: var(--muted); font-size: 0.92rem; grid-column: 1; }
+  .open { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 560px) { .list a { grid-template-columns: 1fr; } .open { grid-column: 1; grid-row: auto; } }
+</style>
