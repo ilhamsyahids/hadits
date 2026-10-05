@@ -2,6 +2,7 @@
 import { env } from 'cloudflare:workers';
 import DocOwner from '../components/DocOwner.vue';
 import LectureReport from '../components/LectureReport.vue';
+import ShareButton from '../components/ShareButton.astro';
 import AppShell from '../layouts/AppShell.astro';
 import { timingOf, type Doc } from '../lectures/doc';
 import { cachedReport } from '../lectures/report';
@@ -39,7 +40,10 @@ const initial = lecture ? await cachedReport(env, id, locale) : null;
             {src.note && <> · <span dir="auto">{src.note}</span></>}
           </p>
         )}
-        <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : lecture.kind === 'text' ? t.ask.openText : t.ask.open}</a></p>
+        <p class="actions">
+          <a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : lecture.kind === 'text' ? t.ask.openText : t.ask.open}</a>
+          <ShareButton locale={locale} title={`${lecture.title} · ${t.share.report}`} />
+        </p>
         <LectureReport client:load id={id} initial={initial} duration={lecture.duration} timing={timing} segments={segments} textLang={lecture.lang} t={t} lang={locale} />
       </>
     ) : (
@@ -56,4 +60,5 @@ const initial = lecture ? await cachedReport(env, id, locale) : null;
   .source a { color: var(--muted); text-underline-offset: 3px; }
   .ask-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; text-decoration: none; }
   .ask-link:hover { background: var(--surface-2); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>

@@ -16,7 +16,7 @@ const href = (p: string) => localePath(locale, p);
   <div class="shell">
     <aside class="side" id="side" aria-label={t.nav.menu}>
       <div class="side-head">
-        <a class="brand" href={href('/')}><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg>{t.brand}</a>
+        <a class="brand" href={href('/')}><svg class="logo" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg><span class:list={["word", { naskh: locale === 'ar' }]}>{t.brand}</span>{locale === 'en' && <span class="naskh ar-word" lang="ar">دليل</span>}</a>
         <button class="icon-btn only-mobile" type="button" data-close-menu aria-label={t.nav.close}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
         </button>
@@ -73,7 +73,7 @@ const href = (p: string) => localePath(locale, p);
         <button class="icon-btn only-mobile" type="button" id="open-menu" aria-controls="side" aria-expanded="false" aria-label={t.nav.menu}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
         </button>
-        <a class="brand only-mobile" href={href('/')}><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg>{t.brand}</a>
+        <a class="brand only-mobile" href={href('/')}><svg class="logo" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg><span class:list={["word", { naskh: locale === 'ar' }]}>{t.brand}</span>{locale === 'en' && <span class="naskh ar-word" lang="ar">دليل</span>}</a>
         <div class="top-actions">
           <a class="text-btn" id="lang-switch" href={other} hreflang={locale === 'en' ? 'ar' : 'en'} lang={locale === 'en' ? 'ar' : 'en'} data-lang={locale === 'en' ? 'ar' : 'en'} aria-label={t.languageLabel}>{t.language}</a>
           <button class="icon-btn" type="button" id="theme" data-dark={t.theme.dark} data-light={t.theme.light} aria-label={t.theme.light}>
@@ -104,6 +104,41 @@ const href = (p: string) => localePath(locale, p);
   // The reader's language choice wins over the first-visit redirect (see src/worker.ts).
   document.getElementById('lang-switch')?.addEventListener('click', (e) => {
     document.cookie = `lang=${(e.currentTarget as HTMLElement).dataset.lang}; path=/; max-age=31536000; samesite=lax`;
+  });
+
+  // Clipboard API first; the older selection copy where the API is refused (some in-app browsers, no permission).
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const field = Object.assign(document.createElement('textarea'), { value: text });
+      field.setAttribute('readonly', '');
+      field.style.cssText = 'position:fixed;opacity:0';
+      document.body.append(field);
+      field.select();
+      const ok = document.execCommand('copy');
+      field.remove();
+      return ok;
+    }
+  };
+  // Share buttons anywhere on the page (ShareButton.astro, and the same markup in Vue islands).
+  document.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-share]');
+    if (!btn) return;
+    const url = btn.dataset.url || location.href;
+    const data = { title: btn.dataset.title || document.title, text: btn.dataset.text || undefined, url };
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share(data); } catch { /* closed by the reader */ }
+      return;
+    }
+    // Copying refused everywhere: show the link to copy by hand.
+    if (!(await copy(url))) return void prompt(btn.dataset.title ?? '', url);
+    const label = btn.querySelector('span');
+    if (!label) return;
+    const before = label.textContent;
+    label.textContent = btn.dataset.copied ?? '';
+    setTimeout(() => (label.textContent = before), 2000);
   });
 
   // Saved Ask conversations (localStorage, this browser only).
@@ -174,8 +209,11 @@ const href = (p: string) => localePath(locale, p);
   .side { padding: 20px 14px; display: flex; flex-direction: column; gap: 22px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
   .side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
   .brand { font-size: 1.45rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
-  .mark rect { fill: var(--invert-bg); }
-  .mark path { fill: none; stroke: var(--invert-text); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+  /* The name in the scripture face: the product is named for the evidence it shows. */
+  .brand .naskh { font-family: var(--scripture); font-weight: 400; }
+  .brand .ar-word { font-size: 1.15rem; color: var(--muted); margin-inline-start: -2px; }
+  .logo rect { fill: var(--invert-bg); }
+  .logo path { fill: none; stroke: var(--invert-text); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
   .primary { display: flex; flex-direction: column; gap: 2px; }
   .primary a, .recent a {
     display: flex; align-items: center; gap: 12px; padding: 10px 10px; border-radius: var(--r-small);
@@ -222,6 +260,8 @@ const href = (p: string) => localePath(locale, p);
     .side.open { transform: none; visibility: visible; }
     .only-mobile { display: inline-flex; }
     .panel { margin: 0; border-radius: 0; min-height: 100dvh; }
+    /* The bar stays at the top while reading on a phone: menu, name, language and theme are always in reach. */
+    .panel-top { position: sticky; top: 0; z-index: 15; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 12px; }
   }
   @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
 </style>

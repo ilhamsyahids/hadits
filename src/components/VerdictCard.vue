@@ -110,8 +110,7 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
 .status { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.mark { width: 9px; height: 9px; border-radius: 2px; background: var(--none); align-self: center; flex: none; }
-.ok .mark { background: var(--ok); } .warn .mark { background: var(--warn); }
+.mark { align-self: center; }
 .ok .status strong { color: var(--ok); } .warn .status strong { color: var(--warn); } .none .status strong { color: var(--none); }
 .note { color: var(--muted); font-size: 0.92rem; }
 .ref { color: var(--text); font-weight: 500; text-underline-offset: 3px; }

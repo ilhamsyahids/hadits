@@ -54,6 +54,14 @@ const ar = `https://hadits.net/ar${path}`;
       }
       * { box-sizing: border-box; }
       html { background: var(--frame); }
+      /* Status marks differ in shape as well as colour (square: matches, triangle: needs attention, ring: not found). */
+      .mark { width: 9px; height: 9px; flex: none; border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 1.6px var(--none); }
+      .ok .mark { background: var(--ok); box-shadow: none; border-radius: 2px; }
+      .warn .mark { background: var(--warn); box-shadow: none; border-radius: 0; width: 10px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+      .share-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; background: transparent; color: var(--text); font: inherit; font-size: 0.93rem; cursor: pointer; }
+      .share-btn:hover { background: var(--surface-2); }
+      /* The top bar is fixed on phones: anchors stop below it. */
+      @media (max-width: 860px) { html { scroll-padding-top: 64px; } }
       body { margin: 0; background: var(--frame); color: var(--text); font: 16px/1.6 var(--ui); -webkit-font-smoothing: antialiased; }
       :lang(ar) body, [lang='ar'] { font-family: 'IBM Plex Sans Arabic', var(--ui); }
       a { color: inherit; }

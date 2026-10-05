@@ -228,8 +228,7 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
 .overview { position: sticky; top: 0; z-index: 2; background: var(--panel); padding: 12px 0 14px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
 .counts { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0 0 14px; }
 .count { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.95rem; }
-.mark { width: 9px; height: 9px; border-radius: 2px; background: var(--none); }
-.ok .mark, .tick.ok { background: var(--ok); } .warn .mark, .tick.warn { background: var(--warn); }
+.tick.ok { background: var(--ok); } .tick.warn { background: var(--warn); }
 .timeline { position: relative; height: 28px; border-radius: var(--r-small); background: var(--surface); border: 1px solid var(--line); }
 /* Centred on its time with a logical margin, so it works in both directions without a dir selector. */
 .tick { position: absolute; top: 4px; width: 6px; height: 18px; margin-inline-start: -3px; border-radius: 2px; border: 0; padding: 0; background: var(--none); cursor: pointer; }

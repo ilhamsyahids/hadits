@@ -1,0 +1,13 @@
+---
+import { STRINGS, type Locale } from '../i18n/strings';
+
+// Share a page: the system share sheet where there is one (phones), otherwise the link is copied.
+// The click is handled once for the whole site in AppShell ([data-share]), so Vue islands can use the same markup.
+interface Props { locale: Locale; title: string; text?: string; url?: string }
+const { locale, title, text, url } = Astro.props;
+const t = STRINGS[locale].share;
+---
+<button type="button" class="share-btn" data-share data-title={title} data-text={text} data-url={url} data-copied={t.copied}>
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M6 12v6.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  <span>{t.label}</span>
+</button>

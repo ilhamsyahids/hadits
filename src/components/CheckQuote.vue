@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import { looksLikeDocument, submitText } from '../lib/documents';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
 
 // Cek Dalil: one quote, reference or remembered meaning → POST /v1/verify { text } → verdict cards.
 // A whole lecture or article pasted here is saved as a text (POST /v1/documents) and opened as a full report.
+// A checked quote is kept in the address (?q=…), so the result can be shared and reopened.
 
 const props = defineProps<{ t: Strings; lang: 'en' | 'ar' }>();
 const text = ref('');
@@ -41,12 +42,17 @@ async function check(input?: string) {
     if (!res.ok) throw new Error(String(res.status));
     refs.value = ((await res.json()) as { refs: Verdict[] }).refs;
     state.value = 'done';
+    history.replaceState(null, '', `${location.pathname}?${new URLSearchParams({ q })}`);
     await nextTick();
     results.value?.focus();
   } catch {
     state.value = 'error';
   }
 }
+onMounted(() => {
+  const q = new URLSearchParams(location.search).get('q');
+  if (q) check(q);
+});
 </script>
 
 <template>
@@ -72,7 +78,15 @@ async function check(input?: string) {
       <button type="button" class="retry" @click="check()">{{ t.retry }}</button>
     </div>
     <p v-else-if="state === 'done' && !refs.length" class="status-line">{{ t.noQuote }}</p>
-    <VerdictCard v-for="r in refs" v-else :key="r.id" :v="r" :t="t" :lang="lang" />
+    <template v-else-if="state === 'done'">
+      <p class="share-row">
+        <button type="button" class="share-btn" data-share :data-title="text.slice(0, 80)" :data-copied="t.share.copied">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M6 12v6.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <span>{{ t.share.label }}</span>
+        </button>
+      </p>
+      <VerdictCard v-for="r in refs" :key="r.id" :v="r" :t="t" :lang="lang" />
+    </template>
   </section>
 </template>
 
@@ -96,6 +110,7 @@ button[type='submit']:disabled { opacity: 0.45; cursor: default; }
 .error { color: var(--warn); }
 .retry { border: 1px solid var(--line); background: transparent; border-radius: var(--r-small); padding: 6px 14px; min-height: 40px; cursor: pointer; }
 .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.share-row { display: flex; justify-content: flex-end; margin: 0; }
 .whole { color: var(--muted); margin: 10px 0 0; font-size: 0.93rem; }
 .more { margin: 18px 0 0; font-size: 0.93rem; }
 .more a { color: var(--muted); text-underline-offset: 3px; }
