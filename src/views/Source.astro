@@ -1,7 +1,7 @@
 ---
 import { env } from 'cloudflare:workers';
 import AppShell from '../layouts/AppShell.astro';
-import { family, neighbours, present, reference, resolveKey } from '../corpus/units';
+import { family, narratorNames, neighbours, present, reference, resolveKey } from '../corpus/units';
 import { SURAHS } from '../corpus/surahs';
 import { collection } from '../corpus/collections';
 import { chapters } from '../corpus/browse';
@@ -18,6 +18,7 @@ const u = row ? present(row, { full: true, lang: locale }) : null;
 const fam = row && row.kind === 'hadith' ? await family(env.CORPUS, row, 20) : [];
 type Narrator = { id: number; role: string; name: string; url: string };
 const narrators = (u?.narrators ?? []) as Narrator[];
+const latin = await narratorNames(env.CORPUS, narrators.map((n) => n.id));
 type Anth = { collection: string; number: string };
 const anthologies = (u?.anthologies ?? []) as Anth[];
 const href = (p: string) => localePath(locale, p);
@@ -148,7 +149,11 @@ if (row?.kind === 'quran') {
           <section>
             <h2>{t.sourcePage.narrators}</h2>
             <ol class="chain" lang="ar" dir="rtl">
-              {narrators.map((n) => <li><a href={n.url} target="_blank" rel="noopener">{n.name}</a></li>)}
+              {narrators.map((n) => (
+                <li>
+                  <a href={n.url} target="_blank" rel="noopener"><span lang="ar">{n.name}</span>{latin.get(n.id) && <span class="latin" lang="en" dir="ltr">{latin.get(n.id)}</span>}</a>
+                </li>
+              ))}
             </ol>
           </section>
         )}
@@ -197,7 +202,12 @@ if (row?.kind === 'quran') {
   /* English chain, in transmission order (the compiler's teacher first, the Companion last). */
   .chain-en { display: flex; flex-wrap: wrap; gap: 4px 4px; padding: 0; list-style: none; margin: 0 0 12px; color: var(--muted); }
   .chain-en li:not(:last-child)::after { content: '›'; margin-inline-start: 6px; color: var(--subtle); }
-  .chain { display: flex; flex-wrap: wrap; gap: 6px 4px; padding: 0; list-style: none; margin: 0; }
+  .chain { display: flex; flex-wrap: wrap; gap: 10px 4px; padding: 0; list-style: none; margin: 0; align-items: flex-start; }
+  .chain a { display: inline-flex; flex-direction: column; text-decoration: none; }
+  .chain a span[lang='ar'] { text-decoration: underline; text-underline-offset: 3px; }
+  .chain a:hover span[lang='ar'] { text-decoration-thickness: 2px; }
+  /* Latin spelling under the Arabic name, for readers who do not read Arabic (Hadith Unlocked's transliteration). */
+  .chain .latin { font-size: 0.8rem; color: var(--muted); text-decoration: none; }
   .chain li:not(:last-child)::after { content: '←'; color: var(--subtle); margin-inline-start: 6px; }
   .links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
   .foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
