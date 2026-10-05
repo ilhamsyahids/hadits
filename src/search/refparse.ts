@@ -100,6 +100,8 @@ export function parseCitations(text: string): Citation[] {
   const out: Citation[] = [];
   const taken: [number, number][] = [];
   const free = (a: number, b: number) => taken.every(([x, y]) => b <= x || a >= y);
+  // "HR Bukhari No. 812 dan Muslim No. 490": the second citation starts after the first, not at its "HR".
+  const after = (from: number, numStart: number) => Math.max(from, ...taken.filter(([, y]) => y <= numStart).map(([, y]) => y));
   const add = (c: Citation) => {
     if (!free(c.start, c.end)) return;
     taken.push([c.start, c.end]);
@@ -132,7 +134,7 @@ export function parseCitations(text: string): Citation[] {
     if (surah) {
       const a = Number(m[1]), b = Number(m[3] ?? m[1]);
       if (a >= 1 && b >= a && b <= ayahCount(surah)) {
-        const start = cueStart(text, prefixStart, numStart);
+        const start = cueStart(text, after(prefixStart, numStart), numStart);
         add({ kind: 'quran', surah, from: a, to: b, start, end, text: text.slice(start, end) });
       }
       continue;
@@ -140,7 +142,7 @@ export function parseCitations(text: string): Citation[] {
     const coll = collectionBefore(prefix);
     // "Quran 41" without an ayah is not a hadith number.
     if (coll && coll !== 'quran') {
-      const start = cueStart(text, prefixStart, numStart);
+      const start = cueStart(text, after(prefixStart, numStart), numStart);
       add({ kind: 'hadith', collection: coll, number: m[1] + (m[2] ?? ''), start, end, text: text.slice(start, end) });
     }
   }
@@ -170,6 +172,9 @@ function cueStart(text: string, from: number, numStart: number): number {
   const window = text.slice(from, numStart);
   const cue = window.search(/\b(HR|H\.R|QS|Q\.S|riwayat|diriwayatkan|surah|surat|shahih|sahih|sunan|musnad|narrated|reported)\b/i);
   if (cue >= 0) return from + cue;
-  const lastBreak = Math.max(window.lastIndexOf('.'), window.lastIndexOf(','), window.lastIndexOf('('));
-  return from + (lastBreak >= 0 ? lastBreak + 1 : 0) + (window.slice(lastBreak + 1).match(/^\s*/)?.[0].length ?? 0);
+  // "No." is an abbreviation, not the end of a sentence; a joining word ("dan Muslim") is not part of the citation.
+  const plain = window.replace(/\b(No|Nomor|no)\./g, '$1 ');
+  const lastBreak = Math.max(plain.lastIndexOf('.'), plain.lastIndexOf(','), plain.lastIndexOf('('));
+  const rest = window.slice(lastBreak + 1);
+  return from + lastBreak + 1 + (rest.match(/^\s*(?:(?:dan|and|serta|&|و)\s+)?/)?.[0].length ?? 0);
 }

@@ -2,6 +2,9 @@
 
     python3 tools/demo_lectures.py                  # → ../data/demo/{id}.json
     python3 tools/demo_lectures.py --upload         # also writes KV keys lecture:{id} and lectures:index
+    python3 tools/demo_lectures.py --warm           # only builds every sample report (en, ar) on the site
+
+`bun run deploy` runs --warm, so a VERIFY_VERSION bump never leaves a reader waiting for a sample report.
 
 Two kinds of sample:
   - lecture transcripts in markdown, kept in the workspace next to this repo (not committed)
@@ -84,7 +87,24 @@ def wikipedia(title, revision=None):
     return "\n".join(text), source
 
 
+def warm():
+    """Request each sample report once per language, one at a time (each builds in 5-30 s, then it is cached)."""
+    base = os.environ.get("HADITS_URL", "https://hadits.net")
+    for d in DEMOS:
+        for lang in ("en", "ar"):
+            url = f"{base}/v1/lectures/{d['id']}/report?lang={lang}"
+            for attempt in (1, 2):
+                try:
+                    body = json.load(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=120))
+                    print(f"{d['id']} {lang}: {'cached' if body.get('cached') else 'built'}, {len(body.get('refs', []))} quotes")
+                    break
+                except Exception as e:  # noqa: BLE001 (report and retry once)
+                    print(f"{d['id']} {lang}: attempt {attempt} failed ({e})")
+
+
 def main():
+    if "--warm" in sys.argv:
+        return warm()
     os.makedirs(OUT, exist_ok=True)
     index = []
     for d in DEMOS:

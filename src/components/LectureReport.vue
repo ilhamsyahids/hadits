@@ -11,9 +11,9 @@ type Report = { refs: Verdict[]; groups: Group[]; summary: Record<string, number
 type Filter = 'all' | 'attention' | 'quran' | 'hadith';
 
 type Seg = { text: string; section: string | null; start: number };
-const props = defineProps<{ id: string; duration: number; timing: 'audio' | 'position'; segments: Seg[]; textLang: string; t: Strings; lang: 'en' | 'ar' }>();
-const state = ref<'loading' | 'done' | 'error'>('loading');
-const report = ref<Report | null>(null);
+const props = defineProps<{ id: string; initial?: Report | null; duration: number; timing: 'audio' | 'position'; segments: Seg[]; textLang: string; t: Strings; lang: 'en' | 'ar' }>();
+const state = ref<'loading' | 'done' | 'error'>(props.initial ? 'done' : 'loading');
+const report = ref<Report | null>(props.initial ?? null);
 const filter = ref<Filter>('all');
 const view = ref<'findings' | 'text'>('findings');
 
@@ -29,6 +29,12 @@ const where = (r: Verdict) => (props.timing === 'audio' ? clock(r.start) : para(
 const place = (r: Verdict) =>
   props.timing === 'audio' ? r.start / Math.max(1, props.duration) : (segOf(r) + 0.5) / Math.max(1, props.segments.length);
 
+// A link to a paragraph (#p12, e.g. from an Ask citation) opens the full text there.
+function openHash() {
+  const p = /^#p(\d+)$/.exec(location.hash);
+  if (p) showInText(Number(p[1]));
+}
+
 async function load() {
   state.value = 'loading';
   try {
@@ -36,14 +42,13 @@ async function load() {
     if (!res.ok) throw new Error(String(res.status));
     report.value = await res.json();
     state.value = 'done';
-    // A link to a paragraph (#p12, e.g. from an Ask citation) opens the full text there.
-    const p = /^#p(\d+)$/.exec(location.hash);
-    if (p) showInText(Number(p[1]));
+    openHash();
   } catch {
     state.value = 'error';
   }
 }
-onMounted(load);
+// The page passes the cached report when there is one; otherwise the text is checked now.
+onMounted(() => (props.initial ? openHash() : load()));
 
 type Stack = { id: string; lead: Verdict; others: Verdict[]; heading?: string; start: number };
 const stacks = computed<Stack[]>(() => {
