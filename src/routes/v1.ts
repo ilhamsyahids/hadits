@@ -6,6 +6,7 @@ import type { Segment } from '../verify/detect';
 import { type Detector, verify } from '../verify/verify';
 import type { Doc, DocIndexItem } from '../lectures/doc';
 import { guessLang, parseText } from '../lectures/parse';
+import { buildReport, cachedReport, reportKey, VERIFY_VERSION } from '../lectures/report';
 
 export const v1 = new Hono<AppEnv>();
 
@@ -33,7 +34,6 @@ v1.get('/search', async (c) => {
   });
 });
 
-const VERIFY_VERSION = 'v7';
 const MAX_SEGMENTS = 2000;
 
 async function hash(s: string) {
@@ -76,15 +76,11 @@ v1.get('/lectures/:id', async (c) => {
 v1.get('/lectures/:id/report', async (c) => {
   const id = c.req.param('id');
   const lang = asLang(c.req.query('lang'));
-  const key = `report:${VERIFY_VERSION}:${id}:${lang}`;
-  const cached = await c.env.CACHE.get(key, 'json');
-  if (cached) return c.json({ ...(cached as object), cached: true });
+  const cached = await cachedReport<object>(c.env, id, lang);
+  if (cached) return c.json({ ...cached, cached: true });
   const lecture = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
   if (!lecture) return c.json({ error: 'not_found' }, 404);
-  const segments = lecture.segments.map(({ start, end, text }) => ({ start, end, text }));
-  const res = await verify(c.env, segments, { lang });
-  if (!res.degraded.length) c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(res), { expirationTtl: 60 * 60 * 24 * 30 }));
-  return c.json(res);
+  return c.json(await buildReport(c.env, lecture, lang, (p) => c.executionCtx.waitUntil(p)));
 });
 
 // A reader's own lecture or article: stored for 30 days under an unlisted id, then reported like a sample.
@@ -141,7 +137,7 @@ v1.delete('/documents/:id', async (c) => {
   await Promise.all([
     c.env.CACHE.delete(`lecture:${id}`),
     c.env.CACHE.delete(`doc:hash:${doc.submitted.text_hash}`),
-    ...['en', 'ar'].map((l) => c.env.CACHE.delete(`report:${VERIFY_VERSION}:${id}:${l}`)),
+    ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(reportKey(id, l))),
   ]);
   return c.json({ deleted: id });
 });

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "deploy": "astro build && wrangler deploy",
+    "deploy": "astro build && wrangler deploy && bun run warm",
+    "warm": "python3 tools/demo_lectures.py --warm",
     "types": "wrangler types --env-interface CloudflareBindings",
     "typecheck": "astro sync && tsc --noEmit",
     "test": "vitest run",

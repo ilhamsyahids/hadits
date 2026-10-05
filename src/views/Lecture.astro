@@ -4,6 +4,7 @@ import DocOwner from '../components/DocOwner.vue';
 import LectureReport from '../components/LectureReport.vue';
 import AppShell from '../layouts/AppShell.astro';
 import { timingOf, type Doc } from '../lectures/doc';
+import { cachedReport } from '../lectures/report';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 interface Props { locale: Locale; id: string }
@@ -15,6 +16,8 @@ const timing = lecture ? timingOf(lecture) : 'position';
 // The full text goes to the report as plain data: it is shown exactly as it was checked.
 const segments = lecture?.segments.map((s) => ({ text: s.text, section: s.section ?? null, start: s.start })) ?? [];
 const src = lecture?.source;
+// A cached report is rendered with the page; only a text never checked in this language is checked on load.
+const initial = lecture ? await cachedReport(env, id, locale) : null;
 ---
 <AppShell title={`${lecture?.title ?? t.lectures.heading} · ${t.brand}`} description={t.lectures.intro} locale={locale} path={`/lectures/${id}`} active="lectures">
   <section class="page">
@@ -37,7 +40,7 @@ const src = lecture?.source;
           </p>
         )}
         <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : lecture.kind === 'text' ? t.ask.openText : t.ask.open}</a></p>
-        <LectureReport client:load id={id} duration={lecture.duration} timing={timing} segments={segments} textLang={lecture.lang} t={t} lang={locale} />
+        <LectureReport client:load id={id} initial={initial} duration={lecture.duration} timing={timing} segments={segments} textLang={lecture.lang} t={t} lang={locale} />
       </>
     ) : (
       <p class="meta">{t.lectures.empty}</p>
