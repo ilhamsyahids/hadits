@@ -141,6 +141,12 @@ const en = {
     articleExamples: ['What evidence does it give?', 'Are the hadith in it authentic?', 'Summarise the main points with their dalil'],
     open: 'Ask about this lecture',
   },
+  about: {
+    nav: 'About',
+    site: 'Dalil checks the ayat and hadith quoted in lectures and articles against their sources, word for word, and shows who graded each hadith.',
+    me: 'About me',
+    bio: 'Ilham Syahid, an engineer at {haraj} and the founder of {majelisnote}.',
+  },
   sources: {
     nav: 'Sources',
     title: 'Where the answers come from',
@@ -336,6 +342,12 @@ const ar: typeof en = {
     lectureExamples: ['ما الأدلة التي ذكرها الشيخ؟', 'ما الأحاديث الضعيفة في هذا الدرس؟', 'لخّص أهم النقاط مع أدلتها'],
     articleExamples: ['ما الأدلة المذكورة فيه؟', 'هل أحاديثه صحيحة؟', 'لخّص أهم النقاط مع أدلتها'],
     open: 'اسأل عن هذا الدرس',
+  },
+  about: {
+    nav: 'عن الموقع',
+    site: 'يتحقق دليل من الآيات والأحاديث المذكورة في الدروس والمقالات بمقابلتها بمصادرها حرفًا بحرف، ويبيّن من حكم على كل حديث.',
+    me: 'عنّي',
+    bio: 'Ilham Syahid، مهندس في {haraj} ومؤسس {majelisnote}.',
   },
   sources: {
     nav: 'المصادر',

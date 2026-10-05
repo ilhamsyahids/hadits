@@ -1,0 +1,48 @@
+---
+import AppShell from '../layouts/AppShell.astro';
+import { STRINGS, type Locale } from '../i18n/strings';
+
+// About the site and its author. Link icons are the sites' own favicons, served from /icons.
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+const a = t.about;
+const LINKS = {
+  haraj: { href: 'https://haraj.com.sa', label: 'haraj.com.sa', icon: '/icons/haraj.png' },
+  majelisnote: { href: 'https://majelisnote.com', label: 'MajelisNote', icon: '/icons/majelisnote.png' },
+  linkedin: { href: 'https://www.linkedin.com/in/ilhamsyahids', label: 'LinkedIn', icon: '/icons/linkedin.png' },
+  web: { href: 'https://ilhamsyahids.com', label: 'ilhamsyahids.com', icon: '/icons/ilhamsyahids.png' },
+};
+// "… at {haraj} and the founder of {majelisnote}." → text and link pieces.
+const bio = a.bio.split(/(\{haraj\}|\{majelisnote\})/).map((p) => (p === '{haraj}' ? LINKS.haraj : p === '{majelisnote}' ? LINKS.majelisnote : p));
+---
+<AppShell title={`${a.nav} · ${t.brand}`} description={a.site} locale={locale} path="/about" active="about">
+  <article class="page">
+    <h1>{a.nav}</h1>
+    <p class="lead">{a.site}</p>
+
+    <h2>{a.me}</h2>
+    <p>
+      {bio.map((p) => typeof p === 'string' ? p : (
+        <a class="link" href={p.href} target="_blank" rel="noopener"><img src={p.icon} alt="" width="16" height="16" />{p.label}</a>
+      ))}
+    </p>
+    <p class="links">
+      {[LINKS.linkedin, LINKS.web].map((p) => (
+        <a class="link" href={p.href} target="_blank" rel="noopener me"><img src={p.icon} alt="" width="16" height="16" />{p.label}</a>
+      ))}
+    </p>
+  </article>
+</AppShell>
+
+<style>
+  .page { max-width: 720px; margin: 0 auto; padding-top: 24px; padding-bottom: 48px; }
+  h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 12px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; font-weight: 500; margin: 40px 0 10px; }
+  .lead { font-size: 1.12rem; line-height: 1.7; margin: 0; max-width: 60ch; }
+  p { margin: 0 0 12px; line-height: 1.7; }
+  .link { display: inline-flex; align-items: center; gap: 6px; text-underline-offset: 3px; white-space: nowrap; }
+  .link img { width: 16px; height: 16px; border-radius: 3px; flex: none; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .links .link { min-height: 40px; }
+</style>
