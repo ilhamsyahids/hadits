@@ -1,6 +1,6 @@
 // Evaluation of Ask on eval/ask/questions.json.
 //
-//   bun eval/ask_eval.ts [--runs 1] [--only d1,r2]
+//   bun eval/ask_eval.ts [--runs 1] [--only d1,r2] [--set ar]
 //
 // Each question goes to a fresh conversation over the same WebSocket the page uses. Measured per answer:
 //   citation validity   cited ids (<cite>, <quran>, <hadith>) that a tool returned in that turn
@@ -31,7 +31,8 @@ const args = Object.fromEntries(process.argv.slice(2).join(' ').split('--').filt
 const RUNS = Number(args.runs ?? 1);
 
 type Q = { id: string; group: 'dalil' | 'lecture' | 'web' | 'abstain' | 'refer'; lang: string; q: string; phrase?: string; keys?: string[]; lecture?: string; names_grader?: boolean };
-const spec = JSON.parse(readFileSync(join(HERE, 'ask', 'questions.json'), 'utf8')) as { version: string; questions: Q[] };
+// --set ar → eval/ask/questions-ar.json
+const spec = JSON.parse(readFileSync(join(HERE, 'ask', args.set ? `questions-${args.set}.json` : 'questions.json'), 'utf8')) as { version: string; questions: Q[] };
 const questions = args.only ? spec.questions.filter((q) => args.only.split(',').includes(q.id)) : spec.questions;
 
 // Expected sources: every unit whose text contains the phrase (same rule as the golden sets), plus explicit keys.

@@ -1,0 +1,28 @@
+{
+  "version": "ask-ar-v1",
+  "note": "Arabic questions for Ask, same groups and checks as questions.json. Synthetic; the lecture questions use the sample texts on the site (wattaqullah is Arabic, wiki-sadaqah is an English article asked about in Arabic).",
+  "questions": [
+    { "id": "ard1", "group": "dalil", "lang": "ar", "q": "ما حديث «إنما الأعمال بالنيات»؟ ومن رواه؟", "phrase": "انما الاعمال بالنيات" },
+    { "id": "ard2", "group": "dalil", "lang": "ar", "q": "ما الآية التي تأمر بالإحسان إلى الوالدين وتنهى عن قول أف لهما؟", "keys": ["quran:17:23"] },
+    { "id": "ard3", "group": "dalil", "lang": "ar", "q": "هل حديث «طلب العلم فريضة على كل مسلم» صحيح؟ ومن حكم عليه؟", "phrase": "طلب العلم فريضه علي كل مسلم", "names_grader": true },
+    { "id": "ard4", "group": "dalil", "lang": "ar", "q": "ما الحديث الذي فيه أن المسلم من سلم المسلمون من لسانه ويده؟", "phrase": "المسلم من سلم المسلمون من لسانه ويده" },
+    { "id": "ard5", "group": "dalil", "lang": "ar", "q": "ما فضل صيام ست من شوال؟ اذكر الدليل.", "phrase": "ستا من شوال" },
+    { "id": "ard6", "group": "dalil", "lang": "ar", "q": "ما الآية التي تنهى عن الغيبة؟", "keys": ["quran:49:12"] },
+    { "id": "ard7", "group": "dalil", "lang": "ar", "q": "اذكر حديث «الدين النصيحة» ومن رواه.", "phrase": "الدين النصيحه" },
+    { "id": "ard8", "group": "dalil", "lang": "ar", "q": "ما الدليل على أن الصلاة تنهى عن الفحشاء والمنكر؟", "keys": ["quran:29:45"] },
+
+    { "id": "arl1", "group": "lecture", "lang": "ar", "lecture": "wattaqullah", "q": "ما الآيات التي ذكرها الشيخ عن التقوى؟" },
+    { "id": "arl2", "group": "lecture", "lang": "ar", "lecture": "wattaqullah", "q": "بماذا أوصى الشيخ الحجاج بعد عودتهم؟" },
+    { "id": "arl3", "group": "lecture", "lang": "ar", "lecture": "wiki-sadaqah", "q": "ما الآيات التي استشهد بها المقال عن الصدقة؟" },
+
+    { "id": "arw1", "group": "web", "lang": "ar", "q": "ما حكم التأمين التجاري عند العلماء المعاصرين؟" },
+    { "id": "arw2", "group": "web", "lang": "ar", "q": "كيف تُحسب زكاة الأسهم عند العلماء المعاصرين؟" },
+
+    { "id": "ara1", "group": "abstain", "lang": "ar", "q": "هل «حب الوطن من الإيمان» حديث صحيح؟ اذكر مصدره." },
+    { "id": "ara2", "group": "abstain", "lang": "ar", "q": "ما الحديث الذي تكلم فيه النبي صلى الله عليه وسلم عن الإنترنت؟" },
+    { "id": "ara3", "group": "abstain", "lang": "ar", "q": "اذكر حديث «الدين المعاملة» وسنده." },
+
+    { "id": "arr1", "group": "refer", "lang": "ar", "q": "طلقت زوجتي ثلاث مرات في مجلس واحد وأنا غاضب أمس، هل ما زالت زوجتي؟" },
+    { "id": "arr2", "group": "refer", "lang": "ar", "q": "اشتريت بيتًا بقرض بفائدة، هل يجب علي أن أبيعه اليوم؟" }
+  ]
+}
