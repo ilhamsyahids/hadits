@@ -4,8 +4,9 @@ import { AgentClient } from 'agents/client';
 import { WebSocketChatTransport } from 'agents/chat/transport';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Strings } from '../i18n/strings';
+import { prophetic } from '../lib/prophetic';
 
 // Ask: a chat with the AskAgent Durable Object over WebSocket. The model's answer may only point at scripture
 // (<quran key/>, <hadith key/>); this component fills those blocks from /v1/refs, i.e. from the database,
@@ -15,9 +16,33 @@ const props = defineProps<{ t: Strings; lang: 'en' | 'ar'; lectureId?: string | 
 const a = computed(() => props.t.ask);
 const base = props.lang === 'ar' ? '/ar' : '';
 
-const agent = new AgentClient({ agent: 'AskAgent', name: crypto.randomUUID(), host: window.location.host });
-const chat = useChat({ transport: new WebSocketChatTransport({ agent, cancelOnClientAbort: true }) });
+// A conversation has an id in the URL (?c=…) and is kept in this browser's localStorage; the same id names its
+// Durable Object, so the server keeps the context too. The sidebar lists saved conversations (see AppShell).
+type Saved = { id: string; title: string; lectureId: string | null; updated: number };
+const INDEX = 'ask:index';
+const store = {
+  get<T>(k: string): T | null { try { return JSON.parse(localStorage.getItem(k) ?? 'null') as T | null; } catch { return null; } },
+  set(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode: not saved */ } },
+};
+const convId = new URLSearchParams(location.search).get('c') ?? crypto.randomUUID();
+const saved = store.get<{ messages: unknown[] }>(`ask:conv:${convId}`);
+
+const agent = new AgentClient({ agent: 'AskAgent', name: convId, host: window.location.host });
+const chat = useChat({ transport: new WebSocketChatTransport({ agent, cancelOnClientAbort: true }), messages: (saved?.messages ?? []) as never[] });
 onBeforeUnmount(() => agent.close());
+
+function persist() {
+  const msgs = chat.messages.value;
+  if (!msgs.length) return;
+  const first = msgs.find((m) => m.role === 'user');
+  const title = (first?.parts.find((p) => p.type === 'text') as { text?: string } | undefined)?.text?.slice(0, 80) ?? '…';
+  store.set(`ask:conv:${convId}`, { messages: msgs });
+  const index = (store.get<Saved[]>(INDEX) ?? []).filter((s) => s.id !== convId);
+  index.unshift({ id: convId, title, lectureId: props.lectureId ?? null, updated: Date.now() });
+  store.set(INDEX, index.slice(0, 30));
+  window.dispatchEvent(new Event('ask-history'));
+}
+watch(() => chat.status.value, (s) => s === 'ready' && persist());
 
 const input = ref('');
 const scroller = ref<HTMLElement | null>(null);
@@ -27,6 +52,11 @@ function send(text?: string) {
   const q = (text ?? input.value).trim();
   if (!q || busy.value) return;
   input.value = '';
+  const url = new URL(location.href);
+  if (url.searchParams.get('c') !== convId) {
+    url.searchParams.set('c', convId);
+    history.replaceState(null, '', url);
+  }
   chat.sendMessage({ text: q }, { body: { lang: props.lang, lectureId: props.lectureId ?? undefined } });
 }
 
@@ -44,6 +74,7 @@ function sourcesOf(parts: Part[]) {
       if (id.startsWith('web:')) map.set(id, { id, label: String(o.site ?? o.title ?? id), href: String(o.url ?? ''), kind: 'web' });
       else if (id.startsWith('lecture:')) map.set(id, { id, label: clock(Number(o.start ?? 0)), href: null, kind: 'lecture' });
       else map.set(id, { id, label: String(o.reference ?? id), href: `${base}/${id}`, kind: id.startsWith('quran:') ? 'quran' : 'hadith' });
+      // Every source opens in a new tab, so the answer stays where it is.
     }
   }
   const final = parts.find((p) => p.type === 'data-citations')?.data as { ids: string[] } | undefined;
@@ -83,7 +114,7 @@ async function enhance(root: HTMLElement, parts: Part[]) {
       const el = document.createElement(s?.href ? 'a' : 'span');
       el.textContent = String(numbers.get(id));
       el.title = s?.label ?? id;
-      if (s?.href) Object.assign(el as HTMLAnchorElement, { href: s.href, target: s.kind === 'web' ? '_blank' : '_self', rel: 'noopener' });
+      if (s?.href) Object.assign(el as HTMLAnchorElement, { href: s.href, target: '_blank', rel: 'noopener' });
       sup.append(el);
     }
   }
@@ -102,12 +133,14 @@ async function enhance(root: HTMLElement, parts: Part[]) {
     }
     box.replaceChildren();
     const p = document.createElement('p');
-    p.className = 'scripture';
+    p.className = key.startsWith('quran:') ? 'scripture quran' : 'scripture';
     p.lang = 'ar';
-    p.textContent = u.ar.matn.length > 900 ? `${u.ar.matn.slice(0, 900)}…` : u.ar.matn;
+    for (const piece of prophetic(u.ar.matn.length > 900 ? `${u.ar.matn.slice(0, 900)}…` : u.ar.matn, 'ar')) {
+      if (!piece.prophetic) p.append(piece.text);
+      else Object.assign(p.appendChild(document.createElement('span')), { className: 'prophetic', textContent: piece.text });
+    }
     const link = document.createElement('a');
-    link.href = `${base}/${key}`;
-    link.textContent = u.reference;
+    Object.assign(link, { href: `${base}/${key}`, target: '_blank', rel: 'noopener', textContent: u.reference });
     box.append(p, link);
   }
 }
@@ -115,15 +148,19 @@ async function enhance(root: HTMLElement, parts: Part[]) {
 const bodies = ref<Record<string, HTMLElement | null>>({});
 watch(
   () => chat.messages.value.map((m) => `${m.id}:${m.parts.length}:${m.parts.map((p) => (p as Part).text?.length ?? (p as Part).state ?? '').join(',')}`).join('|'),
-  async () => {
-    await nextTick();
-    for (const m of chat.messages.value) {
-      const el = bodies.value[m.id];
-      if (el && m.role === 'assistant') enhance(el, m.parts as Part[]);
-    }
-    scroller.value?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  },
+  () => enhanceAll(true),
 );
+// A conversation restored from localStorage renders once without a change, so fill it on mount too.
+onMounted(() => enhanceAll(false));
+
+async function enhanceAll(scroll: boolean) {
+  await nextTick();
+  for (const m of chat.messages.value) {
+    const el = bodies.value[m.id];
+    if (el && m.role === 'assistant') enhance(el, m.parts as Part[]);
+  }
+  if (scroll) scroller.value?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+}
 
 const progress = (parts: Part[]) => {
   const last = [...parts].reverse().find((p) => p.type === 'data-progress')?.data as { label: string; kind: string } | undefined;
@@ -134,7 +171,9 @@ const consulted = (parts: Part[]) => [...sourcesOf(parts).map.values()];
 
 function reset() {
   chat.stop();
-  chat.messages.value = [];
+  const url = new URL(location.href);
+  url.searchParams.delete('c');
+  location.href = url.toString();
 }
 </script>
 
@@ -158,7 +197,7 @@ function reset() {
             <summary>{{ a.sources }} ({{ consulted(m.parts as Part[]).length }})</summary>
             <ul>
               <li v-for="s in consulted(m.parts as Part[])" :key="s.id">
-                <a v-if="s.href" :href="s.href" :target="s.kind === 'web' ? '_blank' : undefined" rel="noopener">{{ s.label }}</a>
+                <a v-if="s.href" :href="s.href" target="_blank" rel="noopener">{{ s.label }}</a>
                 <span v-else>{{ s.label }}</span>
                 <span class="kind">{{ a.kinds[s.kind] }}</span>
               </li>
