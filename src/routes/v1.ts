@@ -58,3 +58,28 @@ v1.post('/verify', async (c) => {
   c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(res), { expirationTtl: 60 * 60 * 24 * 7 }));
   return c.json(res);
 });
+
+// Sample lectures (tools/demo_lectures.py → KV). The report is a cached /v1/verify run per language.
+type LectureIndex = { id: string; title: string; lang: string; duration: number; segments: number }[];
+type Lecture = { id: string; title: string; lang: string; duration: number; synthetic_timing: boolean; segments: (Segment & { section?: string | null })[] };
+
+v1.get('/lectures', async (c) => c.json((await c.env.CACHE.get<LectureIndex>('lectures:index', 'json')) ?? []));
+
+v1.get('/lectures/:id', async (c) => {
+  const lecture = await c.env.CACHE.get<Lecture>(`lecture:${c.req.param('id')}`, 'json');
+  return lecture ? c.json(lecture) : c.json({ error: 'not_found' }, 404);
+});
+
+v1.get('/lectures/:id/report', async (c) => {
+  const id = c.req.param('id');
+  const lang = asLang(c.req.query('lang'));
+  const key = `report:${VERIFY_VERSION}:${id}:${lang}`;
+  const cached = await c.env.CACHE.get(key, 'json');
+  if (cached) return c.json({ ...(cached as object), cached: true });
+  const lecture = await c.env.CACHE.get<Lecture>(`lecture:${id}`, 'json');
+  if (!lecture) return c.json({ error: 'not_found' }, 404);
+  const segments = lecture.segments.map(({ start, end, text }) => ({ start, end, text }));
+  const res = await verify(c.env, segments, { lang });
+  if (!res.degraded.length) c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(res), { expirationTtl: 60 * 60 * 24 * 30 }));
+  return c.json(res);
+});
