@@ -75,7 +75,11 @@ export async function resolveKey(db: D1Database, raw: string): Promise<UnitRow |
   return hadithByNumber(db, coll, m[2]);
 }
 
-export type Grade = { grader: string; grade: string; class: string; sources: string[]; conflict: boolean; via?: string | null };
+/**
+ * One grader's verdict. When the sources record different verdicts for the same grader (e.g. Zubair Ali Zai "Sound"
+ * in two sources, "Hasan" in one), the verdict with more sources is shown and the rest are listed in `others`.
+ */
+export type Grade = { grader: string; grade: string; class: string; sources: string[]; conflict: boolean; via?: string | null; others?: { grade: string; sources: string[]; via?: string | null }[] };
 
 const parse = <T>(s: string | null, fallback: T): T => {
   if (!s) return fallback;
@@ -87,13 +91,24 @@ const parse = <T>(s: string | null, fallback: T): T => {
 };
 
 export function grades(row: UnitRow): Grade[] {
-  return parse<Grade[]>(row.grades_json, []).map((g) => ({
-    grader: g.grader, grade: g.grade, class: g.class, sources: g.sources ?? [], conflict: !!g.conflict, via: g.via ?? null,
-  }));
+  const byGrader = new Map<string, Grade[]>();
+  for (const g of parse<Grade[]>(row.grades_json, [])) {
+    const entry = { grader: g.grader, grade: g.grade, class: g.class, sources: g.sources ?? [], conflict: false, via: g.via ?? null };
+    const k = g.grader.trim().toLowerCase();
+    byGrader.set(k, [...(byGrader.get(k) ?? []), entry]);
+  }
+  return [...byGrader.values()].map((list) => {
+    const [main, ...rest] = list.sort((a, b) => b.sources.length - a.sources.length);
+    // An anthology entry inherits grades from the narrations it quotes (`via`); a differing grade there is another
+    // narration's grade, not a disagreement between sources.
+    const others = rest.filter((r) => r.grade.toLowerCase() !== main.grade.toLowerCase()).map((r) => ({ grade: r.grade, sources: r.sources, via: r.via }));
+    return { ...main, conflict: others.length > 0, ...(others.length ? { others } : {}) };
+  });
 }
 
-export function sourceUrl(row: UnitRow): string {
-  return row.url ?? `https://hadits.net/${row.key}`;
+/** The original source online: sunnah.com when it has the hadith, otherwise Hadith Unlocked; quran.com for ayat. */
+export function sourceUrl(row: UnitRow): string | null {
+  return row.sunnah_url ?? row.url ?? null;
 }
 
 export type Lang = 'en' | 'ar' | 'id';
