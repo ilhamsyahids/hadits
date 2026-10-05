@@ -4,7 +4,7 @@ import Base from './Base.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
-interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'lectures' | null }
+interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'lectures' | null }
 const { title, description, locale, path, active = null } = Astro.props;
 const t = STRINGS[locale];
 type Item = { id: string; title: string; lang: string; duration: number };
@@ -25,6 +25,10 @@ const href = (p: string) => localePath(locale, p);
         <a href={href('/')} aria-current={active === 'check' ? 'page' : undefined}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
           {t.nav.check}
+        </a>
+        <a href={href('/ask')} aria-current={active === 'ask' ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5h14v10H10l-5 4z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" /></svg>
+          {t.nav.ask}
         </a>
         <a href={href('/lectures')} aria-current={active === 'lectures' ? 'page' : undefined}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5h14M5 10h14M5 15h9M5 20h6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" /></svg>
