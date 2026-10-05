@@ -11,7 +11,10 @@
     "eval": "bun eval/run.ts",
     "build": "astro build",
     "preview": "astro build && wrangler dev",
-    "golden": "python3 eval/build_golden.py"
+    "golden": "python3 eval/build_golden.py",
+    "local:setup": "wrangler d1 execute hadits-corpus --local --file sample/corpus.sql && wrangler kv key put --local --binding CACHE df:v1 --path sample/df.json",
+    "local:embed": "bun tools/local_embed.ts",
+    "sample": "python3 tools/build_sample.py"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.3",
