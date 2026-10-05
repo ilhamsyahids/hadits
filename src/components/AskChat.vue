@@ -44,6 +44,27 @@ function persist() {
 }
 watch(() => chat.status.value, (s) => s === 'ready' && persist());
 
+// A turn can be lost when the socket drops mid-answer (a deploy restarts the Durable Object, the network blips):
+// the transport cannot resume it, so after 30 s with nothing new the turn is stopped and a retry is offered.
+const STALL_MS = 30_000;
+const stalled = ref(false);
+let lastActivity = Date.now();
+watch(() => JSON.stringify(chat.messages.value.at(-1)?.parts.length ?? 0) + chat.status.value + (answerTextOf(chat.messages.value.at(-1)) ?? '').length, () => (lastActivity = Date.now()));
+const watchdog = setInterval(() => {
+  if (busy.value && Date.now() - lastActivity > STALL_MS) {
+    chat.stop();
+    stalled.value = true;
+  }
+}, 2000);
+onBeforeUnmount(() => clearInterval(watchdog));
+function answerTextOf(m: { parts: unknown[] } | undefined) {
+  return m?.parts.filter((p) => (p as { type: string }).type === 'text').map((p) => (p as { text?: string }).text ?? '').join('');
+}
+function retry() {
+  stalled.value = false;
+  chat.regenerate();
+}
+
 const input = ref('');
 const scroller = ref<HTMLElement | null>(null);
 const busy = computed(() => chat.status.value === 'submitted' || chat.status.value === 'streaming');
@@ -51,6 +72,7 @@ const busy = computed(() => chat.status.value === 'submitted' || chat.status.val
 function send(text?: string) {
   const q = (text ?? input.value).trim();
   if (!q || busy.value) return;
+  stalled.value = false;
   input.value = '';
   const url = new URL(location.href);
   if (url.searchParams.get('c') !== convId) {
@@ -207,7 +229,7 @@ function reset() {
       </li>
     </ol>
     <p v-if="chat.status.value === 'submitted'" class="progress"><span class="spinner" aria-hidden="true"></span>{{ a.thinking }}</p>
-    <p v-if="chat.error.value" class="error" role="alert">{{ a.error }} <button type="button" class="link" @click="chat.regenerate()">{{ t.retry }}</button></p>
+    <p v-if="chat.error.value || stalled" class="error" role="alert">{{ stalled ? a.stalled : a.error }} <button type="button" class="link" @click="retry">{{ t.retry }}</button></p>
     <div ref="scroller"></div>
 
     <form class="composer" @submit.prevent="send()">

@@ -22,7 +22,8 @@ app.all('/agents/*', async (c) => {
   const hour = Math.floor(Date.now() / 3_600_000);
   const key = `rl:ask:${ip}:${hour}`;
   const n = Number((await c.env.CACHE.get(key)) ?? 0);
-  if (n >= 60) return c.json({ error: 'Too many chats from this address; try again later.' }, 429);
+  // Counts connections, reconnects included (the client reconnects whenever a socket drops).
+  if (n >= 300) return c.json({ error: 'Too many chats from this address; try again later.' }, 429);
   c.executionCtx.waitUntil(c.env.CACHE.put(key, String(n + 1), { expirationTtl: 7200 }));
   return (await routeAgentRequest(c.req.raw, c.env)) ?? c.notFound();
 });
