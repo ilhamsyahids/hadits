@@ -141,6 +141,7 @@ const en = {
     articleExamples: ['What evidence does it give?', 'Are the hadith in it authentic?', 'Summarise the main points with their dalil'],
     open: 'Ask about this lecture',
   },
+  share: { label: 'Share', copied: 'Link copied', report: 'Report on Dalil' },
   about: {
     nav: 'About',
     site: 'Dalil checks the ayat and hadith quoted in lectures and articles against their sources, word for word, and shows who graded each hadith.',
@@ -343,6 +344,7 @@ const ar: typeof en = {
     articleExamples: ['ما الأدلة المذكورة فيه؟', 'هل أحاديثه صحيحة؟', 'لخّص أهم النقاط مع أدلتها'],
     open: 'اسأل عن هذا الدرس',
   },
+  share: { label: 'مشاركة', copied: 'نُسخ الرابط', report: 'تقرير في دليل' },
   about: {
     nav: 'عن الموقع',
     site: 'يتحقق دليل من الآيات والأحاديث المذكورة في الدروس والمقالات بمقابلتها بمصادرها حرفًا بحرف، ويبيّن من حكم على كل حديث.',

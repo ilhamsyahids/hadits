@@ -6,6 +6,7 @@ import { SURAHS } from '../corpus/surahs';
 import { collection } from '../corpus/collections';
 import { chapters } from '../corpus/browse';
 import { prophetic } from '../lib/prophetic';
+import ShareButton from '../components/ShareButton.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Source page (F3): hadits.net/{key}. Every word of scripture here comes from D1.
@@ -27,6 +28,7 @@ const href = (p: string) => localePath(locale, p);
 const coll = row ? collection(row.collection) : undefined;
 const chapterList = row?.kind === 'hadith' ? await chapters(env.CORPUS, env.CACHE, row.collection).catch(() => []) : [];
 const chapterIndex = row ? chapterList.find((c) => c.en === row.chapter_en && c.ar === row.chapter_ar)?.index : undefined;
+const arabicDigits = (n: string) => n.replace(/\d/g, (d) => String.fromCharCode(0x660 + Number(d)));
 const site = u?.url ? new URL(u.url).hostname.replace(/^www\./, '') : null;
 
 // Previous and next: the neighbouring ayah (across surahs), or the neighbouring hadith in the collection's order.
@@ -75,7 +77,10 @@ if (row?.kind === 'quran') {
     {!u ? <p class="muted">{t.sourcePage.notFound}</p> : (
       <>
         <header>
-          <h1>{u.reference}</h1>
+          <div class="title-row">
+            <h1>{u.reference}</h1>
+            <ShareButton locale={locale} title={u.reference} text={`${u.reference}\n${u.ar.matn.length > 280 ? `${u.ar.matn.slice(0, 280)}…` : u.ar.matn}`} />
+          </div>
           {u.section && (locale === 'ar' ? u.section.ar : u.section.en) && (
             <p class="muted" dir="auto">{locale === 'ar' ? u.section.ar : u.section.en}</p>
           )}
@@ -90,6 +95,7 @@ if (row?.kind === 'quran') {
         )}
         <p class={`scripture main${u.kind === 'quran' ? ' quran' : ''}`} lang="ar">
           {prophetic(u.ar.matn, 'ar', u.ar.said).map((p) => (p.prophetic ? <span class="prophetic">{p.text}</span> : p.text))}
+          {u.kind === 'quran' && <span class="ayah-end">{` \u06DD${arabicDigits(row!.key.split(':')[2])}`}</span>}
         </p>
         {locale === 'en' && u.en && (
           <section>
@@ -185,10 +191,13 @@ if (row?.kind === 'quran') {
   .toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 0.9rem; min-height: 36px; cursor: pointer; }
   .other { display: block; color: var(--warn); font-size: 0.88rem; }
   .via { display: block; color: var(--muted); font-size: 0.85rem; }
+  .title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
   h1 { font-size: 1.8rem; font-weight: 500; margin: 8px 0 4px; letter-spacing: -0.01em; }
   h2 { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin: 32px 0 10px; }
   .muted { color: var(--muted); margin: 0; }
-  .scripture.main { font-size: clamp(1.5rem, 2.6vw, 1.9rem); line-height: 2.15; margin: 24px 0 8px; }
+  /* The text sits between double hairlines, like the frame of a mushaf page. */
+  .scripture.main { font-size: clamp(1.5rem, 2.6vw, 1.9rem); line-height: 2.15; margin: 24px 0 8px; padding-block: 14px 10px; border-block: 3px double var(--line); }
+  .ayah-end { color: var(--muted); white-space: nowrap; }
   .scripture.small { font-size: 1.15rem; color: var(--muted); }
   .scripture.tiny { font-size: 1.05rem; line-height: 1.9; color: var(--muted); display: block; }
   .isnad { margin-top: 18px; }
