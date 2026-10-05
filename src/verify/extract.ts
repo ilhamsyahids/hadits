@@ -8,6 +8,8 @@ import { lectureText, makeSpan, type Segment, type Span, spokenWords } from './d
 // Arabic lecture. The model only points at text: every quote must be found verbatim in the transcript or it is
 // dropped. It never supplies scripture; matching, status and grades still come from the database.
 
+const MIN_MEANING_WORDS = 4;
+
 const SYSTEM = `You find every place in a lecture transcript where the speaker quotes or cites the Quran, a hadith, or a saying presented as a hadith.
 For each one return:
 - segment: the number in brackets of the segment where it is said
@@ -16,7 +18,8 @@ For each one return:
 - kind: "quran", "hadith" or "unknown"
 - reference: the reference said with it, exactly as said (e.g. "HR Bukhari", "[البقرة:203]"), or null
 - arabic: only for "transliteration": the same words written in Arabic letters as pronounced; otherwise null
-Skip greetings, du'a and the lecturer's own words. Do not judge authenticity.`;
+Skip greetings, du'a and the lecturer's own words. Do not judge authenticity.
+Only quote the content of a verse or report. Skip: single words or short labels (a definition or translation of a term, such as "God-consciousness"), headings, and the author's paraphrase of a scholar's opinion. When a dialogue is quoted, return the whole exchange as one item, not each line.`;
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -85,6 +88,11 @@ export async function extract(env: Bindings, segments: Segment[]): Promise<{ spa
       continue;
     }
     if (it.form === 'meaning') {
+      // A meaning needs a clause to be checkable: "Yes." or "virtue" would match some report by chance.
+      if (spoken.split(/\s+/).filter(Boolean).length < MIN_MEANING_WORDS) {
+        dropped++;
+        continue;
+      }
       spans.push(makeSpan(segments, text, at, { spoken, words: [], meaning: spoken, cue, citation, detector: 'llm' }));
       continue;
     }
