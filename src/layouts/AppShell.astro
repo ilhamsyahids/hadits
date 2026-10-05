@@ -4,7 +4,7 @@ import Base from './Base.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
-interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'quran' | 'hadith' | 'lectures' | null }
+interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'quran' | 'hadith' | 'lectures' | 'sources' | null }
 const { title, description, locale, path, active = null } = Astro.props;
 const t = STRINGS[locale];
 type Item = { id: string; title: string; lang: string; duration: number };
@@ -41,6 +41,10 @@ const href = (p: string) => localePath(locale, p);
         <a href={href('/lectures')} aria-current={active === 'lectures' ? 'page' : undefined}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5h14M5 10h14M5 15h9M5 20h6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" /></svg>
           {t.nav.lectures}
+        </a>
+        <a href={href('/sources')} aria-current={active === 'sources' ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 4.5h4v15H5zM10.5 4.5h4v15h-4zM16 5.2l3.4-.9 3.1 14.6-3.4.8z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round" transform="translate(-1.2 0)" /></svg>
+          {t.sources.nav}
         </a>
       </nav>
       <section class="recent" id="ask-recent" data-base={locale === 'ar' ? '/ar' : ''} data-delete={t.nav.deleteAsk} data-confirm={t.nav.clearAskConfirm} hidden>

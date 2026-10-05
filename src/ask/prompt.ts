@@ -1,11 +1,6 @@
 // Instructions for Ask. The rules that matter most are enforced again outside the model:
 // scripture is rendered from the database by key, and citations to ids no tool returned are hidden.
-
-export const TRUSTED_SITES = {
-  sa: ['dorar.net', 'binbaz.org.sa', 'islamweb.net', 'islamhouse.com', 'al-badr.net'],
-  id: ['rumaysho.com', 'muslim.or.id', 'almanhaj.or.id', 'konsultasisyariah.com', 'firanda.com'],
-  general: ['sunnah.com', 'islamqa.info'],
-};
+// The websites web_search_trusted may search are listed in ./sites.ts.
 
 export function instructions(opts: { lang: 'en' | 'ar' | 'id'; lecture?: { title: string } | null }) {
   const language = { en: 'English', ar: 'Arabic', id: 'Bahasa Indonesia' }[opts.lang];
