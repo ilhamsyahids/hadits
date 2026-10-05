@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
 
@@ -49,6 +49,10 @@ async function load() {
 }
 // The page passes the cached report when there is one; otherwise the text is checked now.
 onMounted(() => (props.initial ? openHash() : load()));
+// The Ask panel beside the report shows a cited passage here.
+const onParagraph = (e: Event) => showInText((e as CustomEvent<number>).detail);
+onMounted(() => window.addEventListener('show-paragraph', onParagraph));
+onBeforeUnmount(() => window.removeEventListener('show-paragraph', onParagraph));
 
 type Stack = { id: string; lead: Verdict; others: Verdict[]; heading?: string; start: number };
 const stacks = computed<Stack[]>(() => {
