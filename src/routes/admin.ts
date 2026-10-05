@@ -27,3 +27,21 @@ admin.post('/vectors', async (c) => {
   const res = await c.env.UNITS_INDEX.upsert(vectors);
   return c.json({ count: vectors.length, result: res });
 });
+
+// Embeddings from Workers AI for offline jobs (benchmarks, re-indexing). Body: { model, texts } → { vectors }.
+const WORKERS_AI_EMBEDDERS = ['@cf/baai/bge-m3', '@cf/google/embeddinggemma-300m', '@cf/qwen/qwen3-embedding-0.6b'] as const;
+type Embedder = (typeof WORKERS_AI_EMBEDDERS)[number];
+
+admin.post('/embed', async (c) => {
+  const { model, texts } = await c.req.json<{ model: Embedder; texts: string[] }>();
+  if (!WORKERS_AI_EMBEDDERS.includes(model)) return c.json({ error: `model must be one of ${WORKERS_AI_EMBEDDERS.join(', ')}` }, 400);
+  if (!Array.isArray(texts) || !texts.length || texts.length > 100) return c.json({ error: '1..100 texts' }, 400);
+  let out: { data: number[][] | { embedding: number[] }[] };
+  try {
+    out = (await c.env.AI.run(model as never, { text: texts } as never)) as unknown as typeof out;
+  } catch (e) {
+    return c.json({ error: String(e).slice(0, 300) }, 502);
+  }
+  const vectors = out.data.map((d) => (Array.isArray(d) ? d : d.embedding));
+  return c.json({ model, dim: vectors[0]?.length ?? 0, vectors });
+});
