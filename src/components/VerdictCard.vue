@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { norm } from '../lib/arabic';
 import { computed, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import { prophetic } from '../lib/prophetic';
@@ -27,6 +28,8 @@ export type Verdict = {
   near?: { key: string; reference: string }[];
   also?: { key: string; reference: string; similarity: number; same: boolean; grade_status: string | null }[];
   citation?: { said: string; agrees: boolean | null };
+  closest?: { key: string; reference: string; similarity: number; grade_status: string | null };
+  metrics?: { similarity: number };
 };
 
 const props = defineProps<{ v: Verdict; t: Strings; lang: 'en' | 'ar'; heading?: string; anchor?: string }>();
@@ -35,7 +38,14 @@ const base = computed(() => (props.lang === 'ar' ? '/ar' : ''));
 const isArabic = (s: string) => /[؀-ۿ]/.test(s);
 const tone = computed(() => ({ verbatim: 'ok', paraphrase: 'ok', reference: 'ok', misquote: 'warn', weak_or_disputed: 'warn' })[props.v.status] ?? 'none');
 // Only for a misquote: on a paraphrase, reordered words show up as noise rather than as the change that matters.
-const changes = computed(() => (props.v.status === 'misquote' ? (props.v.diff ?? []).filter((o) => o.op !== 'same' && o.op !== 'variant') : []).slice(0, 6));
+// Also when the cited source has the report in other wording (closest): the reader sees what differs from it.
+const showDiff = computed(() => props.v.status === 'misquote' || !!props.v.closest);
+const changes = computed(() => (showDiff.value ? (props.v.diff ?? []).filter((o) => o.op !== 'same' && o.op !== 'variant') : []).slice(0, 6));
+// The said words that are not in the source, marked in place.
+const saidPieces = computed(() => {
+  const odd = new Set(changes.value.filter((c) => c.op !== 'missing').flatMap((c) => norm(c.spoken ?? '').split(' ')).filter(Boolean));
+  return props.v.spoken.split(/(\s+)/).map((w) => ({ w, odd: odd.size > 0 && odd.has(norm(w)) }));
+});
 // A grade's tone, as on the chapter lists: sound grades green, weak ones amber, none grey.
 const gradeTone = (g: string | null) => (g === 'quran' || ['sahihayn', 'sahih', 'hasan', 'hasan_sahih', 'hasan_or_sahih', 'accepted'].includes(g ?? '') ? 'ok' : ['daif', 'mawdu', 'disputed'].includes(g ?? '') ? 'warn' : 'none');
 const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
@@ -55,7 +65,7 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
     <div class="pair">
       <div>
         <h3>{{ v.meaning ? t.meaningOnly : t.said }}</h3>
-        <p :class="isArabic(v.spoken) ? 'scripture' : 'plain'" :dir="isArabic(v.spoken) ? 'rtl' : 'auto'">{{ v.spoken }}</p>
+        <p :class="isArabic(v.spoken) ? 'scripture' : 'plain'" :dir="isArabic(v.spoken) ? 'rtl' : 'auto'"><template v-for="(p, i) in saidPieces" :key="i"><mark v-if="p.odd" class="odd">{{ p.w }}</mark><template v-else>{{ p.w }}</template></template></p>
       </div>
       <div v-if="v.match">
         <h3>{{ t.source }}</h3>
@@ -77,6 +87,9 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
         <template v-else-if="c.op === 'extra'"><del>{{ c.spoken }}</del></template>
         <template v-else><ins>{{ c.source }}</ins></template>
       </span>
+    </p>
+    <p v-if="v.closest" class="reason closest">
+      {{ t.citedWording.split('{closest}')[0].replace('{n}', String(Math.round((v.metrics?.similarity ?? 0) * 100))) }}<a :href="`${base}/${v.closest.key}`">{{ v.closest.reference }}</a>{{ t.citedWording.split('{closest}')[1] }}
     </p>
     <p v-if="v.reason" class="reason"><span class="label">{{ t.why }}:</span> {{ v.reason }}</p>
     <p v-if="v.citation && v.citation.agrees === false" class="citation warn-text">{{ t.citationMismatch }}: «{{ v.citation.said }}»</p>
@@ -135,6 +148,8 @@ p { margin: 0; overflow-wrap: anywhere; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .translation { color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
 .chain { color: var(--subtle); font-size: 0.85rem; margin-top: 8px; }
+.odd { background: color-mix(in srgb, var(--warn) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+.closest a { text-underline-offset: 3px; }
 .changes { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 .change { font-family: var(--scripture); font-size: 1.15rem; }
 del { color: var(--warn); } ins { text-decoration: none; color: var(--ok); }

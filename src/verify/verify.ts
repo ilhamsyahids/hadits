@@ -45,6 +45,8 @@ export type Verdict = {
   near?: { key: string; reference: string; similarity: number }[];
   // Every other source that has this text (verbatim, or nearly): the speaker may have quoted any of them.
   also?: { key: string; reference: string; similarity: number; same: boolean; grade_status: string | null }[];
+  // When the cited source is the match but another has the exact words.
+  closest?: { key: string; reference: string; similarity: number; grade_status: string | null };
   citation?: { said: string; keys: string[]; agrees: boolean | null };
   reason?: string;
   decided_by: 'citation' | 'alignment' | 'judge';
@@ -212,7 +214,7 @@ export async function verify(
   ]);
 
   // Align every candidate; keep the best by alignment score, the rest become "near" matches.
-  const best = new Map<number, { match: Match | null; near: Match[] }>();
+  const best = new Map<number, { match: Match | null; near: Match[]; closest?: Match }>();
   quotes.forEach((s, i) => {
     const tried: Match[] = [];
     for (const f of fused[i]) {
@@ -239,6 +241,14 @@ export async function verify(
       const pa = pref(a), pb = pref(b);
       return pa[0] - pb[0] || pa[1] - pb[1] || pa[2] - pb[2] || pa[3] - pb[3];
     });
+    // The speaker named a source that has this report in other wording ("… (HR. Al-Bukhari no. 6464)" for words
+    // that are exact in another collection): that source is the match, so the citation holds, and the exact wording
+    // is named beside it.
+    const named = tried.find((m) => cited.has(m.key) && m.al.similarity >= ALSO_MIN_SIMILARITY && m.al.coverage >= ALSO_MIN_SIMILARITY);
+    if (named && tried[0] && named !== tried[0]) {
+      best.set(s.id, { match: named, near: tried, closest: tried[0] });
+      return;
+    }
     best.set(s.id, { match: tried[0] ?? null, near: tried });
   });
 
@@ -344,7 +354,7 @@ export async function verify(
       );
       continue;
     }
-    const { match, near } = best.get(s.id)!;
+    const { match, near, closest } = best.get(s.id)!;
     const nearList = near.filter((n) => n !== match).map((n) => ({ key: n.key, reference: reference(n.rows[0], lang), similarity: round(n.al.similarity) }));
     // Close wordings count only for a quote long enough that sharing most of its words is not chance.
     const closeEnough = (al: Alignment) =>
@@ -399,6 +409,9 @@ export async function verify(
       diff: match.al.ops,
       near: nearList.filter((n) => n.key !== match.key).slice(0, 3),
       ...(also.length ? { also } : {}),
+      ...(closest
+        ? { closest: { key: closest.key, reference: reference(closest.rows[0], lang), similarity: round(closest.al.similarity), grade_status: closest.rows[0].kind === 'quran' ? 'quran' : closest.rows[0].grade_status } }
+        : {}),
       ...(s.citation ? { citation: citationCheck(s, cited, match.rows, d.family ?? []) } : {}),
     });
   }

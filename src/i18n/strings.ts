@@ -44,6 +44,7 @@ const en = {
   meaningOnly: 'Said by meaning only',
   why: 'Why',
   diffLegend: 'Changed words',
+  citedWording: 'The source named has this report in other wording ({n}% alike); the same words are in {closest}.',
   status: {
     verbatim: 'Verbatim',
     paraphrase: 'Paraphrase',
@@ -250,6 +251,7 @@ const ar: typeof en = {
   meaningOnly: 'ذُكر بالمعنى فقط',
   why: 'السبب',
   diffLegend: 'الكلمات المختلفة',
+  citedWording: 'في المصدر المذكور هذا الحديث بلفظ آخر (تشابه {n}٪)، واللفظ نفسه في {closest}.',
   status: {
     verbatim: 'مطابق',
     paraphrase: 'بالمعنى',
