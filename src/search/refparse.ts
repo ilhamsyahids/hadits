@@ -114,8 +114,8 @@ export function parseCitations(text: string): Citation[] {
       add({ kind: 'quran', surah: s, from: a, to: b, start: m.index!, end: m.index! + m[0].length, text: m[0] });
   }
 
-  // QS 2:255, QS. Al-Baqarah [2]: 255, (2:255-257)
-  for (const m of text.matchAll(/(?:\b(?:QS|Q\.S|surah|surat|sura)\b\.?\s*(?:[A-Za-z'’\- ]{2,25}\s*)?\[?\s*|\()(\d{1,3})\s*\]?\s*:\s*(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?/gi)) {
+  // QS 2:255, QS. Al-Baqarah [2]: 255, (2:255-257), [Quran 2:43]
+  for (const m of text.matchAll(/(?:\b(?:QS|Q\.S|surah|surat|sura|quran|qur['’]an|al-?quran|koran)\b\.?\s*(?:[A-Za-z'’\- ]{2,25}\s*)?\[?\s*|\()(\d{1,3})\s*\]?\s*:\s*(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?/gi)) {
     const s = Number(m[1]), a = Number(m[2]), b = Number(m[3] ?? m[2]);
     if (s >= 1 && s <= 114 && a >= 1 && b >= a && b <= ayahCount(s))
       add({ kind: 'quran', surah: s, from: a, to: b, start: m.index!, end: m.index! + m[0].length, text: m[0] });
@@ -137,7 +137,8 @@ export function parseCitations(text: string): Citation[] {
       continue;
     }
     const coll = collectionBefore(prefix);
-    if (coll) {
+    // "Quran 41" without an ayah is not a hadith number.
+    if (coll && coll !== 'quran') {
       const start = cueStart(text, prefixStart, numStart);
       add({ kind: 'hadith', collection: coll, number: m[1] + (m[2] ?? ''), start, end, text: text.slice(start, end) });
     }
