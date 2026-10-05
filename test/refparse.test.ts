@@ -50,6 +50,7 @@ describe('parseCitations', () => {
     expect(one("Surat Al-'Ashr ayat 2")).toEqual([{ kind: 'quran', surah: 103, from: 2, to: 2 }]);
   });
   it('two collections in one citation', () => {
+    expect(parseCitations('(HR. Bukhari No. 812 dan Muslim No. 490)').map((c) => c.text)).toEqual(['HR. Bukhari No. 812', 'Muslim No. 490']);
     expect(one('(HR. Bukhari No. 812 dan Muslim No. 490)')).toEqual([
       { kind: 'hadith', collection: 'bukhari', number: '812' },
       { kind: 'hadith', collection: 'muslim', number: '490' },
