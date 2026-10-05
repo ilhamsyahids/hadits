@@ -79,3 +79,20 @@ export async function judge(env: Bindings, items: JudgeItem[], lang: keyof typeo
   const { data, usage } = await generateJSON<{ items: JudgeResult[] }>(env, { model: env.JUDGE_MODEL ?? env.LLM_MODEL, system: SYSTEM.replace('{LANGUAGE}', LANGUAGE[lang]), prompt, schema: SCHEMA, thinking: 'low' });
   return { results: new Map(data.items.map((r) => [r.id, r])), usage };
 }
+
+// Reusing a report's decisions in another language: only the one-sentence reasons are translated.
+const TRANSLATE_SYSTEM = `Translate each reason into {LANGUAGE}. Keep its meaning and any Arabic words exactly as they are; do not add anything. Return the translations in the same order.`;
+const TRANSLATE_SCHEMA = { type: 'OBJECT', properties: { items: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['items'] };
+
+export async function translateReasons(env: Bindings, reasons: string[], lang: keyof typeof LANGUAGE): Promise<{ reasons: string[]; usage: Usage }> {
+  if (!reasons.length) return { reasons: [], usage: { input: 0, output: 0 } };
+  const { data, usage } = await generateJSON<{ items: string[] }>(env, {
+    model: env.LLM_MODEL_LITE ?? env.JUDGE_MODEL,
+    system: TRANSLATE_SYSTEM.replace('{LANGUAGE}', LANGUAGE[lang]),
+    prompt: reasons.map((r, i) => `${i + 1}. ${r}`).join('\n'),
+    schema: TRANSLATE_SCHEMA,
+    thinking: 'minimal',
+  });
+  // A short or missing answer keeps the original reason rather than misplacing a translation.
+  return { reasons: data.items.length === reasons.length ? data.items : reasons, usage };
+}
