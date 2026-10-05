@@ -16,7 +16,7 @@ const href = (p: string) => localePath(locale, p);
   <div class="shell">
     <aside class="side" id="side" aria-label={t.nav.menu}>
       <div class="side-head">
-        <a class="brand" href={href('/')}>{t.brand}</a>
+        <a class="brand" href={href('/')}><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg>{t.brand}</a>
         <button class="icon-btn only-mobile" type="button" data-close-menu aria-label={t.nav.close}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
         </button>
@@ -65,7 +65,7 @@ const href = (p: string) => localePath(locale, p);
         <button class="icon-btn only-mobile" type="button" id="open-menu" aria-controls="side" aria-expanded="false" aria-label={t.nav.menu}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
         </button>
-        <a class="brand only-mobile" href={href('/')}>{t.brand}</a>
+        <a class="brand only-mobile" href={href('/')}><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg>{t.brand}</a>
         <div class="top-actions">
           <a class="text-btn" id="lang-switch" href={other} hreflang={locale === 'en' ? 'ar' : 'en'} lang={locale === 'en' ? 'ar' : 'en'} data-lang={locale === 'en' ? 'ar' : 'en'} aria-label={t.languageLabel}>{t.language}</a>
           <button class="icon-btn" type="button" id="theme" data-dark={t.theme.dark} data-light={t.theme.light} aria-label={t.theme.light}>
@@ -165,7 +165,9 @@ const href = (p: string) => localePath(locale, p);
   .shell { display: grid; grid-template-columns: 272px 1fr; min-height: 100dvh; }
   .side { padding: 20px 14px; display: flex; flex-direction: column; gap: 22px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
   .side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
-  .brand { font-size: 1.45rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+  .brand { font-size: 1.45rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
+  .mark rect { fill: var(--invert-bg); }
+  .mark path { fill: none; stroke: var(--invert-text); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
   .primary { display: flex; flex-direction: column; gap: 2px; }
   .primary a, .recent a {
     display: flex; align-items: center; gap: 12px; padding: 10px 10px; border-radius: var(--r-small);

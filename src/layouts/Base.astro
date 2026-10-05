@@ -15,6 +15,11 @@ const ar = `https://hadits.net/ar${path}`;
     <link rel="alternate" hreflang="en" href={en} />
     <link rel="alternate" hreflang="ar" href={ar} />
     <title>{title}</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#121212" />
     <!-- Theme before paint: the reader's saved choice, otherwise dark (DESIGN.md). -->
     <script is:inline>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
