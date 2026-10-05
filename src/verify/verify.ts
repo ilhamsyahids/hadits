@@ -53,6 +53,8 @@ export type Verdict = {
 };
 
 const collectionRank = (c: string) => (c === 'quran' ? 0 : CORE.includes(c) ? 1 + CORE.indexOf(c) : 20);
+/** 0 for an ayah or a graded report, 1 for an ungraded copy. */
+const graded = (m: { rows: UnitRow[] }) => (m.rows[0].kind === 'quran' || (m.rows[0].grade_status && m.rows[0].grade_status !== 'ungraded') ? 0 : 1);
 const settle = (p: Promise<Hit[]>) => p.catch(() => [] as Hit[]);
 
 // `quran` is a Quran-only stem list: ayat also appear inside hadith (khutbat al-hajah, tafsir reports) and must
@@ -227,7 +229,6 @@ export async function verify(
     // graded source over an ungraded copy (a saying graded fabricated must not show as a plain match), then the
     // core books, then the shortest source (the quote covers more of it).
     const cited = new Set((citedRows.get(s.id) ?? []).map((r) => r.key));
-    const graded = (m: Match) => (m.rows[0].kind === 'quran' || (m.rows[0].grade_status && m.rows[0].grade_status !== 'ungraded') ? 0 : 1);
     const pref = (m: Match) => [cited.has(m.key) ? 0 : 1, graded(m), collectionRank(m.rows[0].collection), m.rows.reduce((n, r) => n + r.ar_norm.length, 0)];
     // Every verbatim match is the same text, so among them the source decides, not a point of score: the ayah
     // before a hadith quoting it, Tirmidhi 2377 before an ungraded copy whose wording differs by one word.
@@ -350,6 +351,8 @@ export async function verify(
       classify(al) === 'verbatim' || (s.words.length >= ALSO_MIN_WORDS && al.similarity >= ALSO_MIN_SIMILARITY && al.coverage >= ALSO_MIN_SIMILARITY);
     const also = near
       .filter((n) => n !== match && n.key !== match?.key && closeEnough(n.al))
+      // Same wording first; then graded sources and the core books, then the closest.
+      .sort((a, b) => Number(classify(b.al) === 'verbatim') - Number(classify(a.al) === 'verbatim') || graded(a) - graded(b) || collectionRank(a.rows[0].collection) - collectionRank(b.rows[0].collection) || b.al.similarity - a.al.similarity)
       .slice(0, ALSO_MAX)
       .map((n) => ({
         key: n.key, reference: reference(n.rows[0], lang), similarity: round(n.al.similarity), same: classify(n.al) === 'verbatim',
