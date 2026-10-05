@@ -1,6 +1,6 @@
 // Three-arm evaluation on the synthetic golden set (eval/golden/lectures.json → ../data/eval/golden-v1.json).
 //
-//   bun run eval --arms dalil,plain,majelisnote --runs 3 [--lectures id,id]
+//   bun run eval --golden v2 --arms dalil,plain,majelisnote --runs 3 [--lectures id,id]
 //
 // Arms:
 //   dalil        POST /v1/verify on hadits.net (or HADITS_URL)
@@ -37,7 +37,8 @@ type ArmOut = { preds: Pred[]; ms: number; tokens: { input: number; output: numb
 const args = Object.fromEntries(process.argv.slice(2).join(' ').split('--').filter(Boolean).map((a) => a.trim().split(/\s+/) as [string, string]));
 const ARMS = (args.arms ?? 'dalil,plain,majelisnote').split(',');
 const RUNS = Number(args.runs ?? 1);
-const golden: { version: string; lectures: Lecture[] } = JSON.parse(readFileSync(join(WS, 'data', 'eval', 'golden-v1.json'), 'utf8'));
+const GOLDEN = args.golden ?? 'v1';
+const golden: { version: string; lectures: Lecture[] } = JSON.parse(readFileSync(join(WS, 'data', 'eval', `golden-${GOLDEN}.json`), 'utf8'));
 const lectures = args.lectures ? golden.lectures.filter((l) => args.lectures.split(',').includes(l.id)) : golden.lectures;
 
 // ---------------------------------------------------------------- Gemini (direct; the eval runs offline)
@@ -301,5 +302,5 @@ for (const s of ['verbatim', 'paraphrase', 'misquote', 'weak_or_disputed', 'not_
 md += `\n## Failures (first run)\n\n| Arm | Lecture | Item | Expected | Got | Predicted key | Accepted keys |\n|---|---|---|---|---|---|---|\n`;
 for (const a of ARMS) for (const r of results[a].rows.filter((r) => !r.status_ok || !r.source_ok)) md += `| ${names[a] ?? a} | ${r.lecture} | ${r.item} | ${r.expected} | ${r.got} | ${r.pred_key ?? ''} | ${r.keys.join(', ')} |\n`;
 if (failures.length) md += `\n## Arm failures\n\n${failures.map((f) => `- ${f}`).join('\n')}\n`;
-writeFileSync(join(HERE, '..', 'EVALUATION.md'), md);
+writeFileSync(join(HERE, '..', GOLDEN === 'v1' ? 'EVALUATION.md' : `EVALUATION-${GOLDEN}.md`), md);
 console.log(`\n${md}\nresults → ${file}`);

@@ -1,0 +1,133 @@
+{
+  "version": "v2",
+  "note": "Held-out set, written 5 Oct 2026 before any verifier run on it. Same rendering rules as v1: `phrase` locates the excerpt and the Arabic comes from the database; `swap`/`drop` make misquotes; `pick` reorders source words for a paraphrase. New kinds of item: `meaning` (the speaker gives only the meaning in Indonesian, no Arabic; status paraphrase, keys = units containing `phrase`), `translit` (Latin transliteration of a source text). Not-found sayings passed a corpus check: in-order word containment ≤ 0.5 and no shared run longer than 2 words. Arabic lectures are written in Arabic throughout, as a Saudi lecturer would speak.",
+  "lectures": [
+    {
+      "id": "puasa",
+      "title": "Kajian Fiqih Puasa: Keutamaan Ramadhan",
+      "lang": "id",
+      "segments": [
+        "Alhamdulillah, kita sudah dekat dengan Ramadhan. Allah berfirman: {{b}}. Tujuan puasa adalah takwa.",
+        "Rasulullah bersabda: {{a}} (HR Bukhari dan Muslim). Iman dan ihtisab, itu kuncinya.",
+        "Jangan lupa sahur. Nabi bersabda: {{c}}",
+        "Ada juga yang mengucapkannya seperti ini: {{d}}. Hati-hati ya, perhatikan lafaznya.",
+        "Rasulullah juga pernah bersabda bahwa puasa itu adalah perisai bagi seorang hamba.",
+        "Sering juga kita dengar disebut hadits: {{e}}. Ini perlu dicek sumbernya.",
+        "Untuk pekan depan, silakan baca QS Al-Baqarah ayat 185."
+      ],
+      "items": {
+        "a": { "key": "bukhari:38", "phrase": "من صام رمضان ايمانا واحتسابا غفر له ما تقدم من ذنبه", "expect": { "status": "verbatim", "citation_agrees": true } },
+        "b": { "key": "quran:2:183", "phrase": "يايها الذين امنوا كتب عليكم الصيام كما كتب علي الذين من قبلكم لعلكم تتقون", "expect": { "status": "verbatim", "keys": ["quran:2:183"] } },
+        "c": { "key": "bukhari:1923", "phrase": "تسحروا فان في السحور بركه", "expect": { "status": "verbatim" } },
+        "d": { "key": "bukhari:1923", "phrase": "تسحروا فان في السحور بركه", "swap": ["بركه", "شِفَاءً"], "expect": { "status": "misquote" } },
+        "m": { "meaning": "puasa itu adalah perisai", "key": "muslim:1151c", "phrase": "الصيام جنه", "expect": { "status": "paraphrase" } },
+        "e": { "text": "النية الصالحة نصف العبادة", "expect": { "status": "not_found_in_corpus" } },
+        "f": { "cite_only": "QS Al-Baqarah ayat 185", "expect": { "status": "reference", "keys": ["quran:2:185"] } }
+      }
+    },
+    {
+      "id": "sedekah",
+      "title": "Kajian Muamalah: Sedekah Tidak Mengurangi Harta",
+      "lang": "id",
+      "segments": [
+        "Saudaraku, jangan takut bersedekah. Rasulullah bersabda: {{a}}",
+        "Bahkan sedekah sekecil apa pun. Nabi bersabda: {{b}}. Sedikit pun tetap berarti.",
+        "Senyum pun sedekah. Rasulullah bersabda: {{c}}",
+        "Allah memberi perumpamaan orang yang berinfak: {{d}}",
+        "Mengajak kepada kebaikan juga berpahala, Nabi bersabda: {{e}} (HR Bukhari).",
+        "Ada pepatah yang sering disebut sebagai hadits: {{f}}. Itu bukan sabda Nabi."
+      ],
+      "items": {
+        "a": { "key": "muslim:2588", "phrase": "ما نقصت صدقه من مال", "expect": { "status": "verbatim" } },
+        "b": { "key": "bukhari:1417", "phrase": "اتقوا النار ولو بشق تمره", "swap": ["النار", "اللَّهَ"], "expect": { "status": "misquote" } },
+        "c": { "key": "tirmidhi:1956", "phrase": "تبسمك في وجه اخيك لك صدقه", "expect": { "status": "verbatim" } },
+        "d": { "key": "quran:2:261", "phrase": "مثل الذين ينفقون امولهم في سبيل الله كمثل حبه انبتت سبع سنابل", "expect": { "status": "verbatim", "keys": ["quran:2:261"] } },
+        "e": { "key": "tirmidhi:2670", "phrase": "الدال علي الخير كفاعله", "expect": { "status": "verbatim", "citation_agrees": false } },
+        "f": { "text": "خير الكلام ما قل ودل", "expect": { "status": "not_found_in_corpus" } }
+      }
+    },
+    {
+      "id": "birrul-walidain",
+      "title": "Kajian Akhlak: Berbakti kepada Orang Tua",
+      "lang": "id",
+      "segments": [
+        "Allah menggandengkan perintah tauhid dengan berbakti kepada orang tua: {{a}}",
+        "Rasulullah bersabda: {{b}}. Ridha Allah ada pada ridha orang tua.",
+        "Ada seseorang bertanya kepada Nabi siapa yang paling berhak ia pergauli dengan baik. Beliau menjawab: ibumu, lalu ibumu, lalu ibumu, kemudian ayahmu.",
+        "Memutus silaturahim itu dosa besar. Nabi bersabda: {{d}} (HR Bukhari no. 5984).",
+        "Dan doa untuk orang tua yang Allah ajarkan: {{e}}"
+      ],
+      "items": {
+        "a": { "key": "quran:17:23", "phrase": "وقضي ربك الا تعبدوا الا اياه وبالولدين احسنا", "expect": { "status": "verbatim", "keys": ["quran:17:23"] } },
+        "b": { "key": "tirmidhi:1899", "phrase": "رضا الرب في رضا الوالد وسخط الرب في سخط الوالد", "expect": { "status": "verbatim" } },
+        "c": { "meaning": "siapa yang paling berhak ia pergauli dengan baik", "key": "muslim:2548a", "phrase": "من احق الناس بحسن صحابتي", "expect": { "status": "paraphrase" } },
+        "d": { "key": "bukhari:5984", "phrase": "لا يدخل الجنه قاطع", "expect": { "status": "verbatim", "citation_agrees": true } },
+        "e": { "key": "quran:17:24", "phrase": "وقل رب ارحمهما كما ربياني صغيرا", "swap": ["صغيرا", "كَبِيرًا"], "expect": { "status": "misquote", "keys": ["quran:17:24"] } }
+      }
+    },
+    {
+      "id": "taubat",
+      "title": "Kajian Tazkiyah: Pintu Taubat Selalu Terbuka",
+      "lang": "id",
+      "segments": [
+        "Jangan pernah putus asa. Allah berfirman: {{a}}",
+        "Semua manusia pernah salah. Rasulullah bersabda: {{b}}",
+        "Dan Nabi bersabda: {{c}} (HR Ibnu Majah). Orang yang bertaubat seperti tidak punya dosa.",
+        "Allah memerintahkan taubat yang sungguh-sungguh: {{d}}",
+        "Taubat dimulai dari niat. Ingat hadits innamal a'malu binniyat, semua amal tergantung niatnya.",
+        "Ada juga yang sering menyebut sebagai hadits: {{e}}. Ini tidak ada asalnya."
+      ],
+      "items": {
+        "a": { "key": "quran:39:53", "phrase": "قل يعبادي الذين اسرفوا علي انفسهم لا تقنطوا من رحمه الله", "expect": { "status": "verbatim", "keys": ["quran:39:53"] } },
+        "b": { "key": "ibnmajah:4251", "phrase": "كل بني ادم خطاء وخير الخطايين التوابون", "expect": { "status": "weak_or_disputed" } },
+        "c": { "key": "ibnmajah:4250", "phrase": "التايب من الذنب كمن لا ذنب له", "expect": { "status": "weak_or_disputed", "citation_agrees": true } },
+        "d": { "key": "quran:66:8", "phrase": "يايها الذين امنوا توبوا الي الله توبه نصوحا", "expect": { "status": "verbatim", "keys": ["quran:66:8"] } },
+        "t": { "translit": "innamal a'malu binniyat", "key": "bukhari:1", "phrase": "انما الاعمال بالنيات", "expect": { "status": "verbatim" } },
+        "e": { "text": "طلب العلم بعد العصر يعدل عبادة ستين عاما", "expect": { "status": "not_found_in_corpus" } }
+      }
+    },
+    {
+      "id": "adab-talib-ilm",
+      "title": "درس: آداب طالب العلم",
+      "lang": "ar",
+      "segments": [
+        "الحمد لله رب العالمين، والصلاة والسلام على نبينا محمد. أيها الإخوة، حديثنا اليوم عن فضل العلم وآداب طالبه.",
+        "قال رسول الله صلى الله عليه وسلم: {{a}}. فالفقه في الدين علامة إرادة الخير بالعبد.",
+        "وقال الله تعالى: {{b}}. فأهل العلم هم أهل الخشية.",
+        "وقال النبي صلى الله عليه وسلم: {{c}} رواه مسلم. فالطريق إلى العلم طريق إلى الجنة.",
+        "وبعض الناس يرويه هكذا: {{d}}. وهذا خطأ في اللفظ يغيّر المعنى.",
+        "ويُنسب إلى النبي قولٌ لا أصل له: {{e}}. فلا يجوز أن نقول قال رسول الله إلا بما ثبت.",
+        "وقال تعالى: {{f}}. والله أعلم."
+      ],
+      "items": {
+        "a": { "key": "bukhari:71", "phrase": "من يرد الله به خيرا يفقهه في الدين", "expect": { "status": "verbatim" } },
+        "b": { "key": "quran:35:28", "phrase": "انما يخشي الله من عباده العلموا", "expect": { "status": "verbatim", "keys": ["quran:35:28"] } },
+        "c": { "key": "muslim:2699a", "phrase": "ومن سلك طريقا يلتمس فيه علما سهل الله له به طريقا الي الجنه", "expect": { "status": "verbatim", "citation_agrees": true } },
+        "d": { "key": "bukhari:71", "phrase": "من يرد الله به خيرا يفقهه في الدين", "swap": ["الدين", "الدُّنْيَا"], "expect": { "status": "misquote" } },
+        "e": { "text": "اللسان سبع إن أطلقته أكل صاحبه", "expect": { "status": "not_found_in_corpus" } },
+        "f": { "key": "quran:39:9", "phrase": "قل هل يستوي الذين يعلمون والذين لا يعلمون", "expect": { "status": "verbatim", "keys": ["quran:39:9"] } }
+      }
+    },
+    {
+      "id": "husn-al-khuluq",
+      "title": "درس: حسن الخلق",
+      "lang": "ar",
+      "segments": [
+        "أيها الأحبة، حسن الخلق من أعظم ما يقرّب العبد إلى ربه. وقد أثنى الله على نبيه فقال: {{b}}",
+        "وقال رسول الله صلى الله عليه وسلم: {{a}} رواه البخاري.",
+        "وقال عليه الصلاة والسلام: {{c}}. فكمال الإيمان مرتبط بحسن الخلق.",
+        "وسُئل النبي عن البر والإثم فقال ما معناه: {{d}}",
+        "وقال صلى الله عليه وسلم: {{e}}. فالرحمة سبب لرحمة الله.",
+        "ولا ينبغي أن نقول: {{f}}"
+      ],
+      "items": {
+        "a": { "key": "bukhari:3559", "phrase": "ان من خياركم احسنكم اخلاقا", "expect": { "status": "verbatim", "citation_agrees": true } },
+        "b": { "key": "quran:68:4", "phrase": "وانك لعلي خلق عظيم", "expect": { "status": "verbatim", "keys": ["quran:68:4"] } },
+        "c": { "key": "abudawud:4682", "phrase": "اكمل المومنين ايمانا احسنهم خلقا", "expect": { "status": "verbatim" } },
+        "d": { "key": "muslim:2553a", "pick": ["والاثم", "ما", "حاك", "في", "صدرك", "البر", "حسن", "الخلق"], "expect": { "status": "paraphrase" } },
+        "e": { "key": "abudawud:4941", "phrase": "الراحمون يرحمهم الرحمن", "swap": ["الرحمن", "النَّاسُ"], "expect": { "status": "misquote" } },
+        "f": { "text": "خير الكلام ما قل ودل", "expect": { "status": "not_found_in_corpus" } }
+      }
+    }
+  ]
+}
