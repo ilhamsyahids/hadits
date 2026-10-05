@@ -1,0 +1,80 @@
+---
+import AppShell from '../layouts/AppShell.astro';
+import { SITES, type SiteLang } from '../ask/sites';
+import { STRINGS, type Locale } from '../i18n/strings';
+
+// What Dalil reads from and what Ask may search, and how to tell us when something is wrong.
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+const s = t.sources;
+const EMAIL = 'ilhamsyahids@gmail.com';
+const mail = (subject: string) => `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}`;
+const groups: SiteLang[] = locale === 'ar' ? ['ar', 'en', 'id'] : ['en', 'ar', 'id'];
+---
+<AppShell title={`${s.nav} · ${t.brand}`} description={s.intro} locale={locale} path="/sources" active="sources">
+  <article class="page">
+    <h1>{s.title}</h1>
+    <p class="intro">{s.intro} <a href="#contact">{s.contact}</a></p>
+
+    <h2>{s.texts}</h2>
+    <dl class="corpus">
+      {s.corpus.map(([name, what]) => (<><dt dir="auto">{name}</dt><dd>{what}</dd></>))}
+    </dl>
+
+    <h2>{s.web}</h2>
+    <p class="muted">{s.webIntro}</p>
+    {groups.map((g) => (
+      <section class="group">
+        <h3>{s.langs[g]} <span class="count">{SITES.filter((x) => x.lang === g).length}</span></h3>
+        <ul class="sites">
+          {SITES.filter((x) => x.lang === g).map((x) => (
+            <li>
+              <a href={`https://${x.domain}`} target="_blank" rel="noopener" dir="auto">{x.name}</a>
+              <span class="domain">{x.domain}</span>
+              <p>{x.about[locale]}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    <section id="contact" class="contact">
+      <h2>{s.contact}</h2>
+      <p>{s.contactIntro}</p>
+      <p class="actions">
+        <a class="primary" href={mail(s.subjects.dispute)}>{s.dispute}</a>
+        <a href={mail(s.subjects.suggest)}>{s.suggest}</a>
+        <a href={mail(s.subjects.feedback)}>{s.feedback}</a>
+      </p>
+      <p class="muted email"><a href={`mailto:${EMAIL}`}>{EMAIL}</a></p>
+    </section>
+  </article>
+</AppShell>
+
+<style>
+  .page { max-width: 820px; margin: 0 auto; padding-top: 24px; padding-bottom: 48px; }
+  h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; font-weight: 500; margin: 40px 0 10px; }
+  h3 { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin: 26px 0 6px; }
+  .count { color: var(--subtle); font-variant-numeric: tabular-nums; margin-inline-start: 4px; }
+  .intro { color: var(--muted); margin: 0; max-width: 64ch; }
+  .muted { color: var(--muted); margin: 0; max-width: 64ch; }
+  .corpus { display: grid; grid-template-columns: minmax(150px, max-content) 1fr; gap: 12px 24px; margin: 0; }
+  .corpus dt { font-weight: 500; }
+  .corpus dd { margin: 0; color: var(--muted); }
+  .sites { list-style: none; padding: 0; margin: 0; }
+  .sites li { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .sites a { font-weight: 500; text-underline-offset: 3px; }
+  .domain { color: var(--subtle); font-size: 0.85rem; direction: ltr; align-self: baseline; }
+  .sites p { grid-column: 1 / -1; margin: 2px 0 0; color: var(--muted); font-size: 0.93rem; }
+  .contact { margin-top: 48px; padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+  .contact h2 { margin-top: 0; }
+  .contact > p { margin: 0 0 14px; max-width: 64ch; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .actions a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--r-small); text-decoration: none; color: var(--text); }
+  .actions a:hover { border-color: var(--muted); }
+  .actions a.primary { background: var(--invert-bg); color: var(--invert-text); border-color: var(--invert-bg); }
+  .email { margin: 4px 0 0 !important; font-size: 0.9rem; }
+  @media (max-width: 560px) { .corpus { grid-template-columns: 1fr; gap: 2px; } .corpus dd { margin-bottom: 10px; } .contact { padding: 18px 16px; } }
+</style>

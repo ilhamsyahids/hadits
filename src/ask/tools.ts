@@ -4,7 +4,7 @@ import { family, grades, type Lang, present, reference, resolveKey, unitsByKeys 
 import type { Bindings } from '../env';
 import { norm, stems } from '../lib/arabic';
 import { latinHits, rrf, stemHits, trigramHits, vectorHits, type Hit } from '../search/retrieve';
-import { TRUSTED_SITES } from './prompt';
+import { domainsFor } from './sites';
 
 // Ask's tools. Each returns compact items whose `id` is what the answer cites; every returned id is recorded in
 // `seen`, and the page hides citations to anything else. A `data-progress` part tells the page what is running.
@@ -95,14 +95,16 @@ export function makeTools(ctx: { env: Bindings; writer: UIMessageStreamWriter; s
   });
 
   const web_search_trusted = tool({
-    description: 'Search a short list of trusted Islamic websites for explanation or contemporary questions. Not for hadith text or grades.',
-    inputSchema: z.object({ query: z.string(), region: z.enum(['sa', 'id', 'all']).default('all'), label: z.string() }),
-    execute: async ({ query, region, label }, { toolCallId }) => {
+    description:
+      'Search a fixed list of trusted Islamic websites for explanation or contemporary questions. Not for hadith text or grades. ' +
+      'language picks the sites written in that language (ar, en, id); all searches every site.',
+    inputSchema: z.object({ query: z.string(), language: z.enum(['ar', 'en', 'id', 'all']).default('all'), label: z.string() }),
+    execute: async ({ query, language, label }, { toolCallId }) => {
       if (!env.TAVILY_API_KEY) return { error: 'web search is not configured' };
       if (webCalls >= WEB_BUDGET) return { error: 'web search budget for this answer is used up' };
       webCalls++;
       progress(toolCallId, label, 'web');
-      const domains = region === 'all' ? [...TRUSTED_SITES.sa, ...TRUSTED_SITES.id, ...TRUSTED_SITES.general] : [...TRUSTED_SITES[region], ...TRUSTED_SITES.general];
+      const domains = domainsFor(language);
       const res = await fetch('https://api.tavily.com/search', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${env.TAVILY_API_KEY}` },
