@@ -23,25 +23,29 @@ const ar = `https://hadits.net/ar${path}`;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     />
+    <link rel="preload" href="/fonts/UthmanicHafs.woff2" as="font" type="font/woff2" crossorigin />
     <style is:global>
+      /* KFGQPC HAFS Uthmanic Script (King Fahd Complex), self-hosted: the Quran in its own script. */
+      @font-face { font-family: 'KFGQPC HAFS Uthmanic Script'; src: url('/fonts/UthmanicHafs.woff2') format('woff2'); font-display: swap; }
       /* Neutral chrome (see DESIGN.md); status colours are the only colours, and they mean something. */
       :root, :root[data-theme='dark'] {
         --frame: #181818; --panel: #0e0e0e; --surface: #1c1c1c; --surface-2: #242424; --line: #2c2c2c;
         --text: #f1f0ec; --muted: #a3a09a; --subtle: #8a877f; --invert-bg: #f1f0ec; --invert-text: #121212;
-        --ok: #5cc795; --warn: #e3ab52; --none: #a3a09a; --focus: #8ab4ff;
+        --ok: #5cc795; --warn: #e3ab52; --none: #a3a09a; --focus: #8ab4ff; --prophetic: #74c69d;
         color-scheme: dark;
       }
       :root[data-theme='light'] {
         --frame: #ece9e2; --panel: #faf9f6; --surface: #ffffff; --surface-2: #f2f0eb; --line: #dbd7ce;
         --text: #1b1a17; --muted: #5d5950; --subtle: #6b675e; --invert-bg: #1b1a17; --invert-text: #faf9f6;
-        --ok: #1b7448; --warn: #8a5606; --none: #5d5950; --focus: #1d4ed8;
+        --ok: #1b7448; --warn: #8a5606; --none: #5d5950; --focus: #1d4ed8; --prophetic: #1e6b46;
         color-scheme: light;
       }
       :root {
         --ui: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
-        --scripture: 'Amiri', 'Noto Naskh Arabic', serif;
+        --quran: 'KFGQPC HAFS Uthmanic Script', 'Scheherazade New', 'Amiri', 'Noto Naskh Arabic', serif;
+        --scripture: 'Scheherazade New', 'KFGQPC HAFS Uthmanic Script', 'Amiri', 'Noto Naskh Arabic', serif;
         --r-panel: 22px; --r-input: 28px; --r-card: 14px; --r-small: 8px;
       }
       * { box-sizing: border-box; }
@@ -50,7 +54,10 @@ const ar = `https://hadits.net/ar${path}`;
       :lang(ar) body, [lang='ar'] { font-family: 'IBM Plex Sans Arabic', var(--ui); }
       a { color: inherit; }
       :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
-      .scripture { font-family: var(--scripture); font-size: 1.45rem; line-height: 2.05; direction: rtl; text-align: right; }
+      .scripture { font-family: var(--scripture); font-size: 1.5rem; line-height: 2.05; direction: rtl; text-align: right; }
+      .scripture.quran { font-family: var(--quran); line-height: 2.2; }
+      /* The Prophet's own words inside a hadith (marked «…» in the source text): the one accent colour. */
+      .prophetic { color: var(--prophetic); }
       .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
       button { font: inherit; color: inherit; }
     </style>
