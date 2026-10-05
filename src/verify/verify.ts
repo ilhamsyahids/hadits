@@ -257,7 +257,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
   lap('judged');
   const refs: Verdict[] = [];
   for (const s of spans) {
-    const base = { id: s.id, spoken: s.spoken, start: s.start, end: s.end, segments: s.segments, cue: s.cue, detector: s.detector };
+    const base = { id: s.id, spoken: s.spoken, start: s.start, end: s.end, a: s.a, b: s.b, segments: s.segments, cue: s.cue, detector: s.detector };
     const cited = citedRows.get(s.id) ?? [];
     if (s.meaning) {
       const j = meaningVerdicts.get(s.id);

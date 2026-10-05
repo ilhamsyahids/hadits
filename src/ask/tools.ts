@@ -66,11 +66,11 @@ export function makeTools(ctx: { env: Bindings; writer: UIMessageStreamWriter; s
   });
 
   const search_lecture = tool({
-    description: 'Search what the speaker said in this lecture. Returns passages with timestamps.',
+    description: 'Search the text of this lecture or article. Returns passages with where they are: a time (m:ss) or a paragraph (¶ n).',
     inputSchema: z.object({ query: z.string().describe('Words to look for, in the lecture language or Arabic'), label: z.string() }),
     execute: async ({ query, label }, { toolCallId }) => {
       progress(toolCallId, label, 'search');
-      type Lecture = { segments: { start: number; end: number; text: string }[] };
+      type Lecture = { timing?: string; segments: { start: number; end: number; text: string }[] };
       const lecture = ctx.lectureId ? await env.CACHE.get<Lecture>(`lecture:${ctx.lectureId}`, 'json') : null;
       if (!lecture) return { error: 'no lecture in this conversation' };
       const words = (s: string) => new Set([...s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2), ...stems(s).split(' ').filter((w) => w.length > 2)]);
@@ -89,7 +89,8 @@ export function makeTools(ctx: { env: Bindings; writer: UIMessageStreamWriter; s
         const id = `lecture:${ctx.lectureId}#${i}`;
         seen.add(id);
         const s = lecture.segments[i];
-        return { id, start: s.start, text: clip(s.text, 900) };
+        const where = lecture.timing === 'audio' ? `${Math.floor(s.start / 60)}:${String(Math.floor(s.start % 60)).padStart(2, '0')}` : `¶ ${i + 1}`;
+        return { id, where, text: clip(s.text, 900) };
       });
     },
   });
