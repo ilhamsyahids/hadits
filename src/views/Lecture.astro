@@ -1,5 +1,6 @@
 ---
 import { env } from 'cloudflare:workers';
+import AskChat from '../components/AskChat.vue';
 import DocOwner from '../components/DocOwner.vue';
 import LectureReport from '../components/LectureReport.vue';
 import ShareButton from '../components/ShareButton.astro';
@@ -41,7 +42,7 @@ const initial = lecture ? await cachedReport(env, id, locale) : null;
           </p>
         )}
         <p class="actions">
-          <a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : lecture.kind === 'text' ? t.ask.openText : t.ask.open}</a>
+          <a class="ask-link" id="open-ask" aria-controls="ask-panel" aria-expanded="false" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : lecture.kind === 'text' ? t.ask.openText : t.ask.open}</a>
           <ShareButton locale={locale} title={`${lecture.title} · ${t.share.report}`} />
         </p>
         <LectureReport client:load id={id} initial={initial} duration={lecture.duration} timing={timing} segments={segments} textLang={lecture.lang} t={t} lang={locale} />
@@ -50,7 +51,32 @@ const initial = lecture ? await cachedReport(env, id, locale) : null;
       <p class="meta">{t.lectures.empty}</p>
     )}
   </section>
+  {lecture && (
+    <aside class="ask-panel" id="ask-panel" aria-label={lecture.kind === 'article' ? t.ask.openArticle : t.ask.open}>
+      <AskChat client:only="vue" t={t} lang={locale} lectureId={id} lectureTitle={lecture.title} lectureKind={lecture.kind ?? 'lecture'} embedded />
+    </aside>
+  )}
 </AppShell>
+
+<script>
+  // Ask beside the report: the link opens the panel instead of another page (it still works without script).
+  const panel = document.getElementById('ask-panel');
+  const open = document.getElementById('open-ask');
+  const setOpen = (on: boolean) => {
+    if (on) document.documentElement.dataset.askOpen = '';
+    else delete document.documentElement.dataset.askOpen;
+    open?.setAttribute('aria-expanded', String(on));
+    if (on) setTimeout(() => panel?.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 50);
+    else open?.focus({ preventScroll: true });
+  };
+  open?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setOpen(!('askOpen' in document.documentElement.dataset));
+  });
+  window.addEventListener('ask-panel', (e) => setOpen((e as CustomEvent<boolean>).detail));
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && 'askOpen' in document.documentElement.dataset && setOpen(false));
+  if (location.hash === '#ask') setOpen(true);
+</script>
 
 <style>
   .page { max-width: 920px; margin: 0 auto; padding-top: 24px; }
@@ -61,4 +87,10 @@ const initial = lecture ? await cachedReport(env, id, locale) : null;
   .ask-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; text-decoration: none; }
   .ask-link:hover { background: var(--surface-2); }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ask-link[aria-expanded='true'] { background: var(--invert-bg); color: var(--invert-text); border-color: var(--invert-bg); }
+  /* The Ask panel: docked on the right beside the report on wide screens, over the page on smaller ones. */
+  .ask-panel { display: none; position: fixed; z-index: 25; inset-block: 10px; inset-inline-end: 10px; width: 440px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); flex-direction: column; overflow: hidden; }
+  :global(html[data-ask-open]) .ask-panel { display: flex; }
+  @media (min-width: 1100px) { :global(html[data-ask-open]) .page { margin-inline: 0 460px; } }
+  @media (max-width: 1099px) { .ask-panel { inset: 0; width: auto; border-radius: 0; border: 0; } }
 </style>

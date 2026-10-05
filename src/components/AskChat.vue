@@ -12,7 +12,11 @@ import { prophetic } from '../lib/prophetic';
 // (<quran key/>, <hadith key/>); this component fills those blocks from /v1/refs, i.e. from the database,
 // and shows a citation only when its id was returned by a tool in that turn.
 
-const props = defineProps<{ t: Strings; lang: 'en' | 'ar'; lectureId?: string | null; lectureTitle?: string | null; lectureKind?: string | null }>();
+// embedded: the panel beside a lecture report. The conversation is kept per lecture (not in the address), and a
+// passage citation scrolls the report beside it instead of opening a page.
+const props = defineProps<{ t: Strings; lang: 'en' | 'ar'; lectureId?: string | null; lectureTitle?: string | null; lectureKind?: string | null; embedded?: boolean }>();
+// The page around an embedded panel listens for this (Lecture.astro).
+const closePanel = () => window.dispatchEvent(new CustomEvent('ask-panel', { detail: false }));
 const a = computed(() => props.t.ask);
 const base = props.lang === 'ar' ? '/ar' : '';
 
@@ -24,7 +28,9 @@ const store = {
   get<T>(k: string): T | null { try { return JSON.parse(localStorage.getItem(k) ?? 'null') as T | null; } catch { return null; } },
   set(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode: not saved */ } },
 };
-const convId = new URLSearchParams(location.search).get('c') ?? crypto.randomUUID();
+const lectureConv = props.embedded && props.lectureId ? `ask:lecture:${props.lectureId}` : null;
+const convId = (lectureConv ? store.get<string>(lectureConv) : new URLSearchParams(location.search).get('c')) ?? crypto.randomUUID();
+if (lectureConv) store.set(lectureConv, convId);
 const saved = store.get<{ messages: unknown[] }>(`ask:conv:${convId}`);
 
 const agent = new AgentClient({ agent: 'AskAgent', name: convId, host: window.location.host });
@@ -75,7 +81,7 @@ function send(text?: string) {
   stalled.value = false;
   input.value = '';
   const url = new URL(location.href);
-  if (url.searchParams.get('c') !== convId) {
+  if (!props.embedded && url.searchParams.get('c') !== convId) {
     url.searchParams.set('c', convId);
     history.replaceState(null, '', url);
   }
@@ -99,7 +105,7 @@ function sourcesOf(parts: Part[]) {
       else if (id.startsWith('lecture:')) {
         // lecture:{id}#{paragraph}: opens the report's full text at that paragraph.
         const [doc, i] = id.slice('lecture:'.length).split('#');
-        map.set(id, { id, label: String(o.where ?? clock(Number(o.start ?? 0))), href: `${base}/lectures/${doc}#p${i}`, kind: 'lecture' });
+        map.set(id, { id, label: String(o.where ?? clock(Number(o.start ?? 0))), href: props.embedded ? `#p${i}` : `${base}/lectures/${doc}#p${i}`, kind: 'lecture' });
       }
       else map.set(id, { id, label: String(o.reference ?? id), href: `${base}/${id}`, kind: id.startsWith('quran:') ? 'quran' : 'hadith' });
       // Every source opens in a new tab, so the answer stays where it is.
@@ -142,7 +148,7 @@ async function enhance(root: HTMLElement, parts: Part[]) {
       const el = document.createElement(s?.href ? 'a' : 'span');
       el.textContent = String(numbers.get(id));
       el.title = s?.label ?? id;
-      if (s?.href) Object.assign(el as HTMLAnchorElement, { href: s.href, target: '_blank', rel: 'noopener' });
+      if (s?.href) Object.assign(el as HTMLAnchorElement, s.href.startsWith('#') ? { href: s.href } : { href: s.href, target: '_blank', rel: 'noopener' });
       sup.append(el);
     }
   }
@@ -181,6 +187,16 @@ watch(
 // A conversation restored from localStorage renders once without a change, so fill it on mount too.
 onMounted(() => enhanceAll(false));
 
+// Embedded: a passage link (#p12) scrolls the report beside the panel; on a phone the panel closes first.
+function onClick(e: MouseEvent) {
+  const a = (e.target as HTMLElement).closest('a');
+  const m = a && /^#p(\d+)$/.exec(a.getAttribute('href') ?? '');
+  if (!props.embedded || !m) return;
+  e.preventDefault();
+  if (matchMedia('(max-width: 1099px)').matches) closePanel();
+  window.dispatchEvent(new CustomEvent('show-paragraph', { detail: Number(m[1]) }));
+}
+
 async function enhanceAll(scroll: boolean) {
   await nextTick();
   for (const m of chat.messages.value) {
@@ -199,6 +215,13 @@ const consulted = (parts: Part[]) => [...sourcesOf(parts).map.values()];
 
 function reset() {
   chat.stop();
+  if (lectureConv) {
+    // A new conversation about the same lecture: forget the old id and reopen the panel.
+    try { localStorage.removeItem(lectureConv); } catch { /* ignore */ }
+    location.hash = 'ask';
+    location.reload();
+    return;
+  }
   const url = new URL(location.href);
   url.searchParams.delete('c');
   location.href = url.toString();
@@ -206,8 +229,17 @@ function reset() {
 </script>
 
 <template>
-  <section class="ask">
-    <header v-if="!chat.messages.value.length" class="intro">
+  <section class="ask" :class="{ embedded }" @click="onClick">
+    <header v-if="embedded" class="panel-head">
+      <div>
+        <h2>{{ lectureKind === 'article' ? a.articleHeading : lectureKind === 'text' ? a.textHeading : a.lectureHeading }}</h2>
+        <p class="panel-title" dir="auto">{{ lectureTitle }}</p>
+      </div>
+      <button type="button" class="close" :aria-label="a.closePanel" :title="a.closePanel" @click="closePanel">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
+      </button>
+    </header>
+    <header v-else-if="!chat.messages.value.length" class="intro">
       <h1>{{ !lectureTitle ? a.heading : lectureKind === 'article' ? a.articleHeading : lectureKind === 'text' ? a.textHeading : a.lectureHeading }}</h1>
       <p v-if="lectureTitle" class="lecture" dir="auto">{{ lectureTitle }}</p>
       <p class="lede">{{ a.intro }}</p>
@@ -250,11 +282,22 @@ function reset() {
       </template>
       <button v-else type="button" @click="reset">{{ a.newChat }}</button>
     </div>
-    <p class="note">{{ a.note }}</p>
+    <p v-if="!embedded" class="note">{{ a.note }}</p>
   </section>
 </template>
 
 <style scoped>
+/* Embedded beside a report: a column that scrolls its own thread, the composer always at the bottom. */
+.ask.embedded { max-width: none; margin: 0; padding: 0 16px 14px; min-height: 0; height: 100%; }
+.embedded .thread { overflow-y: auto; padding: 12px 2px; gap: 18px; }
+.embedded .composer { position: static; margin-top: 10px; }
+.embedded .chips { justify-content: flex-start; gap: 8px; }
+.embedded .chips button { font-size: 0.9rem; padding: 6px 12px; }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 0 10px; border-bottom: 1px solid var(--line); }
+.panel-head h2 { font-size: 1.05rem; font-weight: 500; margin: 0; }
+.panel-title { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
+.close { border: 0; background: transparent; color: var(--text); width: 40px; height: 40px; border-radius: var(--r-small); display: grid; place-items: center; cursor: pointer; flex: none; }
+.close:hover { background: var(--surface-2); }
 .ask { max-width: 780px; margin: 0 auto; padding-top: 24px; display: flex; flex-direction: column; min-height: calc(100dvh - 120px); }
 .intro { text-align: center; padding-top: clamp(24px, 12vh, 140px); }
 h1 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); font-weight: 500; margin: 0 0 8px; letter-spacing: -0.015em; }
