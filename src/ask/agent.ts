@@ -47,21 +47,36 @@ export class AskAgent extends AIChatAgent<Bindings> {
               }
             : {}),
         });
+        const system = instructions({ lang, lecture: lecture ? { title: lecture.title } : null });
+        const history = await convertToModelMessages(this.messages);
         const result = streamText({
           model: google(env.LLM_MODEL),
-          instructions: instructions({ lang, lecture: lecture ? { title: lecture.title } : null }),
-          messages: await convertToModelMessages(this.messages),
+          instructions: system,
+          messages: history,
           tools: makeTools({ env, writer, seen, lang, lectureId: lecture ? lectureId : null }),
           stopWhen: isStepCount(MAX_STEPS),
+          // Last step: no tools at all. With tools declared but disabled, Gemini can return an empty text block.
           prepareStep: ({ stepNumber }) =>
-            stepNumber === 0 ? { toolChoice: 'required' as const } : stepNumber === MAX_STEPS - 1 ? { toolChoice: 'none' as const } : {},
+            stepNumber === 0 ? { toolChoice: 'required' as const } : stepNumber === MAX_STEPS - 1 ? { toolChoice: 'none' as const, activeTools: [] } : {},
           providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
           abortSignal: options?.abortSignal,
         });
-        writer.merge(toUIMessageStream({ stream: result.stream }));
-        await result.text;
+        writer.merge(toUIMessageStream({ stream: result.stream, sendFinish: false }));
+        if (!(await result.text).trim()) {
+          // The searches ran but no answer was written: one more step, without tools, from what they returned.
+          const answer = streamText({
+            model: google(env.LLM_MODEL),
+            instructions: `${system}\n\nThe searches are done. Write the answer now from the tool results above, following every rule; do not call tools.`,
+            messages: [...history, ...(await result.responseMessages)],
+            providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
+            abortSignal: options?.abortSignal,
+          });
+          writer.merge(toUIMessageStream({ stream: answer.stream, sendStart: false, sendFinish: false }));
+          await answer.text;
+        }
         // Everything the tools returned this turn: the page hides citations and scripture tags outside this set.
         writer.write({ type: 'data-citations', data: { ids: [...seen] } });
+        writer.write({ type: 'finish' });
       },
     });
     return createUIMessageStreamResponse({ stream });
