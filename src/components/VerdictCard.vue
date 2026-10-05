@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { norm } from '../lib/arabic';
+import { chainNames } from '../lib/chain';
 import { computed, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import { prophetic } from '../lib/prophetic';
@@ -74,7 +75,7 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
         </p>
         <button v-if="long" type="button" class="link" @click="full = !full">{{ full ? '−' : '+' }} {{ v.match.reference }}</button>
         <template v-if="v.match.en && lang === 'en'">
-          <p v-if="v.match.en_isnad" class="chain">{{ v.match.en_isnad.split(/\s*>\s*/).join(' › ') }}</p>
+          <p v-if="v.match.en_isnad" class="chain">{{ chainNames(v.match.en_isnad).join(' › ') }}</p>
           <p class="translation"><template v-for="(p, i) in prophetic(v.match.en, 'en')" :key="i"><span v-if="p.prophetic" class="prophetic">{{ p.text }}</span><template v-else>{{ p.text }}</template></template></p>
         </template>
       </div>
