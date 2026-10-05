@@ -25,7 +25,9 @@ app.all('/agents/*', async (c) => {
   // Counts connections, reconnects included (the client reconnects whenever a socket drops).
   if (n >= 300) return c.json({ error: 'Too many chats from this address; try again later.' }, 429);
   c.executionCtx.waitUntil(c.env.CACHE.put(key, String(n + 1), { expirationTtl: 7200 }));
-  return (await routeAgentRequest(c.req.raw, c.env)) ?? c.notFound();
+  // New conversations live in Eastern Europe, next to the corpus (D1 is EEUR). Left to default, a Durable Object
+  // starts near the reader, and Gemini refuses some of those locations ("User location is not supported").
+  return (await routeAgentRequest(c.req.raw, c.env, { locationHint: 'eeur' })) ?? c.notFound();
 });
 app.use(cf());
 app.use(middleware());
