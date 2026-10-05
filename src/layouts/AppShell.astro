@@ -43,8 +43,8 @@ const href = (p: string) => localePath(locale, p);
           {t.nav.lectures}
         </a>
       </nav>
-      <section class="recent" id="ask-recent" data-base={locale === 'ar' ? '/ar' : ''} hidden>
-        <h2>{t.nav.recentAsk}</h2>
+      <section class="recent" id="ask-recent" data-base={locale === 'ar' ? '/ar' : ''} data-delete={t.nav.deleteAsk} data-confirm={t.nav.clearAskConfirm} hidden>
+        <div class="recent-head"><h2>{t.nav.recentAsk}</h2><button type="button" class="clear-all">{t.nav.clearAsk}</button></div>
         <ul></ul>
       </section>
       {lectures.length > 0 && (
@@ -99,10 +99,25 @@ const href = (p: string) => localePath(locale, p);
   });
 
   // Saved Ask conversations (localStorage, this browser only).
+  type Saved = { id: string; title: string; lectureId: string | null };
   const recent = document.getElementById('ask-recent')!;
+  const readIndex = (): Saved[] => { try { return JSON.parse(localStorage.getItem('ask:index') ?? '[]'); } catch { return []; } };
+  const current = () => new URLSearchParams(location.search).get('c');
+  // Deleting forgets the conversation here and clears its history in the Durable Object that holds it.
+  const forget = (ids: string[]) => {
+    try {
+      for (const id of ids) localStorage.removeItem(`ask:conv:${id}`);
+      localStorage.setItem('ask:index', JSON.stringify(readIndex().filter((s) => !ids.includes(s.id))));
+    } catch { /* storage blocked: nothing was saved either */ }
+    for (const id of ids) {
+      const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/agents/ask-agent/${encodeURIComponent(id)}`);
+      ws.onopen = () => { ws.send(JSON.stringify({ type: 'cf_agent_chat_clear' })); setTimeout(() => ws.close(), 500); };
+    }
+    if (ids.includes(current() ?? '')) location.href = `${recent.dataset.base}/ask`;
+    else renderRecent();
+  };
   const renderRecent = () => {
-    let items: { id: string; title: string; lectureId: string | null }[] = [];
-    try { items = JSON.parse(localStorage.getItem('ask:index') ?? '[]'); } catch {}
+    const items = readIndex();
     const ul = recent.querySelector('ul')!;
     ul.replaceChildren(
       ...items.slice(0, 10).map((c) => {
@@ -112,12 +127,22 @@ const href = (p: string) => localePath(locale, p);
         a.href = `${recent.dataset.base}/ask?${q}`;
         a.textContent = c.title;
         a.dir = 'auto';
-        if (new URLSearchParams(location.search).get('c') === c.id) a.setAttribute('aria-current', 'page');
+        if (current() === c.id) a.setAttribute('aria-current', 'page');
+        const del = li.appendChild(document.createElement('button'));
+        del.type = 'button';
+        del.className = 'del';
+        del.setAttribute('aria-label', `${recent.dataset.delete}: ${c.title}`);
+        del.title = recent.dataset.delete!;
+        del.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+        del.addEventListener('click', () => forget([c.id]));
         return li;
       }),
     );
     recent.hidden = items.length === 0;
   };
+  recent.querySelector('.clear-all')!.addEventListener('click', () => {
+    if (confirm(recent.dataset.confirm)) forget(readIndex().map((s) => s.id));
+  });
   renderRecent();
   window.addEventListener('ask-history', renderRecent);
 
@@ -151,6 +176,15 @@ const href = (p: string) => localePath(locale, p);
   .recent h2 { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin: 0 10px 6px; }
   .recent ul { list-style: none; margin: 0; padding: 0; }
   /* Links built by the script above don't carry Astro's scope attribute. */
+  .recent-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-inline-end: 4px; }
+  .recent-head h2 { margin-bottom: 6px; }
+  .clear-all { border: 0; background: none; color: var(--subtle); font: inherit; font-size: 0.82rem; padding: 6px; border-radius: var(--r-small); cursor: pointer; }
+  .clear-all:hover { color: var(--text); background: var(--surface-2); }
+  #ask-recent :global(li) { position: relative; }
+  #ask-recent :global(.del) { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--r-small); background: var(--surface-2); color: var(--muted); cursor: pointer; opacity: 0; }
+  #ask-recent :global(li:hover .del), #ask-recent :global(.del:focus-visible) { opacity: 1; }
+  #ask-recent :global(.del:hover) { color: var(--text); }
+  @media (hover: none) { #ask-recent :global(.del) { opacity: 1; background: none; } #ask-recent :global(a) { padding-inline-end: 40px; } }
   #ask-recent :global(a) { display: block; padding: 10px; border-radius: var(--r-small); text-decoration: none; color: var(--text); min-height: 44px; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #ask-recent :global(a:hover), #ask-recent :global(a[aria-current='page']) { background: var(--surface-2); }
   .recent a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 24px; }
