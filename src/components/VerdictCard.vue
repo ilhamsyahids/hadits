@@ -14,7 +14,7 @@ export type Verdict = {
   start: number;
   reason?: string;
   meaning?: boolean;
-  match?: { key: string; reference: string; url: string; kind: string; ar: { matn: string }; en?: string | null; range?: string[] };
+  match?: { key: string; reference: string; url: string; kind: string; ar: { matn: string }; en?: string | null; en_isnad?: string | null; range?: string[] };
   diff?: Op[];
   grades?: Grade[];
   grade_summary?: { status: string; note?: string };
@@ -54,7 +54,10 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
         <h3>{{ t.source }}</h3>
         <p class="scripture" lang="ar" :class="{ clamp: long && !full }">{{ v.match.ar.matn }}</p>
         <button v-if="long" type="button" class="link" @click="full = !full">{{ full ? '−' : '+' }} {{ v.match.reference }}</button>
-        <p v-if="v.match.en && lang === 'en'" class="translation">{{ v.match.en }}</p>
+        <template v-if="v.match.en && lang === 'en'">
+          <p v-if="v.match.en_isnad" class="chain">{{ v.match.en_isnad.split(/\s*>\s*/).join(' › ') }}</p>
+          <p class="translation">{{ v.match.en }}</p>
+        </template>
       </div>
     </div>
 
@@ -109,6 +112,7 @@ p { margin: 0; overflow-wrap: anywhere; }
 .plain { color: var(--text); }
 .clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .translation { color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
+.chain { color: var(--subtle); font-size: 0.85rem; margin-top: 8px; }
 .changes { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 .change { font-family: var(--scripture); font-size: 1.15rem; }
 del { color: var(--warn); } ins { text-decoration: none; color: var(--ok); }
