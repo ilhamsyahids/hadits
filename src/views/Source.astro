@@ -52,6 +52,12 @@ if (row?.kind === 'quran') {
         {locale === 'en' && u.en && (
           <section>
             <h2>{t.sourcePage.translation}</h2>
+            {u.en_isnad && (
+              <details class="isnad" open>
+                <summary>{t.sourcePage.chain}</summary>
+                <ol class="chain-en">{u.en_isnad.split(/\s*>\s*/).map((n) => <li>{n}</li>)}</ol>
+              </details>
+            )}
             <p class="translation">{u.en}</p>
           </section>
         )}
@@ -129,6 +135,9 @@ if (row?.kind === 'quran') {
   th { font-weight: 500; }
   .warn { color: var(--warn); }
   .family { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  /* English chain, in transmission order (the compiler's teacher first, the Companion last). */
+  .chain-en { display: flex; flex-wrap: wrap; gap: 4px 4px; padding: 0; list-style: none; margin: 0 0 12px; color: var(--muted); }
+  .chain-en li:not(:last-child)::after { content: '›'; margin-inline-start: 6px; color: var(--subtle); }
   .chain { display: flex; flex-wrap: wrap; gap: 6px 4px; padding: 0; list-style: none; margin: 0; }
   .chain li:not(:last-child)::after { content: '←'; color: var(--subtle); margin-inline-start: 6px; }
   .links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }

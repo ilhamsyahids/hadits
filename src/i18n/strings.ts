@@ -86,6 +86,7 @@ const en = {
   sourcePage: {
     back: 'Back to check',
     isnad: 'Chain of narration (isnad)',
+    chain: 'Chain of narrators',
     showIsnad: 'Show the chain',
     narrators: 'Narrators',
     anthologies: 'Also in',
@@ -173,6 +174,7 @@ const ar: typeof en = {
   sourcePage: {
     back: 'العودة إلى التحقق',
     isnad: 'الإسناد',
+    chain: 'سلسلة الرواة',
     showIsnad: 'اعرض الإسناد',
     narrators: 'الرواة',
     anthologies: 'وهو أيضًا في',

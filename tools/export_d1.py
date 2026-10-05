@@ -32,11 +32,11 @@ TRI_MAX = 40_000           # bytes of trigram text per unit (long sira/history e
 
 UNIT_COLS = ["id", "key", "kind", "collection", "number", "number_base", "ord",
              "chapter_en", "chapter_ar", "section_en", "section_ar", "title_en",
-             "ar_isnad", "ar_matn", "ar_prophetic", "ar_marked", "en_text", "id_text",
+             "ar_isnad", "ar_matn", "ar_prophetic", "ar_marked", "en_isnad", "en_text", "id_text",
              "ar_norm", "ar_stem", "grade_status", "grades_json", "notes_json", "narrators_json",
              "family_id", "parallel_of", "same_as_previous_of", "anthologies_json", "source_matches_json",
              "flags_json", "url", "sunnah_url"]
-BIG = {"ar_isnad", "ar_matn", "ar_prophetic", "ar_marked", "en_text", "id_text", "ar_norm", "ar_stem",
+BIG = {"ar_isnad", "ar_matn", "ar_prophetic", "ar_marked", "en_isnad", "en_text", "id_text", "ar_norm", "ar_stem",
        "grades_json", "narrators_json", "notes_json"}
 
 SCHEMA = """
@@ -53,7 +53,7 @@ CREATE TABLE units (
   id INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, kind TEXT NOT NULL, collection TEXT NOT NULL,
   number TEXT, number_base INTEGER, ord INTEGER,
   chapter_en TEXT, chapter_ar TEXT, section_en TEXT, section_ar TEXT, title_en TEXT,
-  ar_isnad TEXT, ar_matn TEXT, ar_prophetic TEXT, ar_marked TEXT, en_text TEXT, id_text TEXT,
+  ar_isnad TEXT, ar_matn TEXT, ar_prophetic TEXT, ar_marked TEXT, en_isnad TEXT, en_text TEXT, id_text TEXT,
   ar_norm TEXT, ar_stem TEXT,
   grade_status TEXT, grades_json TEXT, notes_json TEXT, narrators_json TEXT,
   family_id TEXT, parallel_of TEXT, same_as_previous_of TEXT, anthologies_json TEXT, source_matches_json TEXT,
@@ -256,7 +256,7 @@ def main():
                 "section_en": r["section_en"], "section_ar": r["section_ar"], "title_en": r["title_en"],
                 "ar_isnad": r["ar_isnad"], "ar_matn": r["ar_matn"] or r["ar_full_fawaz"],
                 "ar_prophetic": r["ar_prophetic"], "ar_marked": r["ar_marked"],
-                "en_text": r["en_matn"], "id_text": r["ind_full"],
+                "en_isnad": r["en_isnad"], "en_text": r["en_matn"], "id_text": r["ind_full"],
                 "grade_status": r["grade_status"], "grades_json": r["grades_json"], "notes_json": r["notes_json"],
                 "narrators_json": r["narrators_json"], "family_id": fam.get(r["key"]),
                 "parallel_of": r["parallel_of"], "same_as_previous_of": r["same_as_previous_of"],
