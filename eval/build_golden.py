@@ -40,13 +40,18 @@ def tokens(text):
 
 
 def locate(key, phrase):
+    """Token range [a, b] of the source whose normalised words equal `phrase` (one token may normalise to two words)."""
     toks, tn = tokens(source_text(key))
+    words, owner = [], []
+    for i, t in enumerate(tn):
+        for w in t.split():
+            words.append(w)
+            owner.append(i)
     p = norm(phrase).split()
-    idx = [i for i, w in enumerate(tn) if w]
-    for s in range(len(idx) - len(p) + 1):
-        if [tn[idx[s + k]] for k in range(len(p))] == p:
-            return toks, tn, idx[s], idx[s + len(p) - 1]
-    raise SystemExit(f"{key}: phrase not found: {phrase}\n  source: {' '.join(w for w in tn if w)[:300]}")
+    for s in range(len(words) - len(p) + 1):
+        if words[s:s + len(p)] == p:
+            return toks, tn, owner[s], owner[s + len(p) - 1]
+    raise SystemExit(f"{key}: phrase not found: {phrase}\n  source: {' '.join(words)[:300]}")
 
 
 def strip_quote_marks(s):

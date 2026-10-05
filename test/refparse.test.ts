@@ -35,6 +35,13 @@ describe('parseCitations', () => {
     expect(one('(HR Muslim).')).toEqual([{ kind: 'hadith', collection: 'muslim', number: '' }]);
     expect(one('diriwayatkan oleh Imam Bukhari dan Muslim')).toEqual([{ kind: 'hadith', collection: 'bukhari', number: '' }]);
   });
+  it('Arabic bracket citations, with typos', () => {
+    expect(one('{وَاتَّقُواْ اللّهَ}[البقرة:203]')).toEqual([{ kind: 'quran', surah: 2, from: 203, to: 203 }]);
+    expect(one('[آل عمران:102]')).toEqual([{ kind: 'quran', surah: 3, from: 102, to: 102 }]);
+    expect(one('[الطور:26-27]')).toEqual([{ kind: 'quran', surah: 52, from: 26, to: 27 }]);
+    expect(one('[البقؤة:197]')).toEqual([{ kind: 'quran', surah: 2, from: 197, to: 197 }]);
+    expect(one('سورة البقرة آية 255')).toEqual([{ kind: 'quran', surah: 2, from: 255, to: 255 }]);
+  });
   it('ignores timestamps and plain numbers', () => {
     expect(one('pada menit 12:30 beliau berkata ada 3 hal')).toEqual([]);
     expect(one('tahun 2024 ada 100 orang')).toEqual([]);

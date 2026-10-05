@@ -2,13 +2,18 @@ import { collection, CORE } from '../corpus/collections';
 import { family, type Grade, grades, type Lang, LIGHT_COLS, present, reference, type UnitRow, unitsByKeys } from '../corpus/units';
 import type { Bindings } from '../env';
 import type { Usage } from '../lib/gemini';
-import { type Hit, rrf, stemHits, trigramHits, vectorHits } from '../search/retrieve';
+import { hasArabic } from '../lib/arabic';
+import { type Hit, latinHits, rrf, stemHits, trigramHits, vectorHits } from '../search/retrieve';
 import { resolveCitation } from '../search/search';
 import { type Alignment, align, type Op } from './align';
-import { detect, type Segment, type Span } from './detect';
-import { judge, type JudgeItem } from './judge';
+import { detect, lectureText, makeSpan, type Segment, type Span } from './detect';
+import { extract, mergeSpans } from './extract';
+import { judge, type JudgeItem, judgeMeaning, type MeaningItem } from './judge';
 
-// /v1/verify: transcript → spans → candidates → alignment → verdict (+ grey-band judge) → grades and family.
+// /v1/verify: transcript → spans (rules, LLM, or both) → candidates → alignment → verdict (+ grey-band judge)
+// → grades and family → groups (the same dalil quoted several times becomes one stack).
+
+export type Detector = 'rules' | 'llm' | 'hybrid';
 
 export type Status = 'verbatim' | 'paraphrase' | 'misquote' | 'weak_or_disputed' | 'not_found_in_corpus' | 'reference';
 export type TextStatus = Exclude<Status, 'weak_or_disputed'>;
@@ -41,10 +46,30 @@ export type Verdict = {
   citation?: { said: string; keys: string[]; agrees: boolean | null };
   reason?: string;
   decided_by: 'citation' | 'alignment' | 'judge';
+  detector: Span['detector'];
+  meaning?: boolean;
 };
 
 const collectionRank = (c: string) => (c === 'quran' ? 0 : CORE.includes(c) ? 1 + CORE.indexOf(c) : 20);
 const settle = (p: Promise<Hit[]>) => p.catch(() => [] as Hit[]);
+
+// `quran` is a Quran-only stem list: ayat also appear inside hadith (khutbat al-hajah, tafsir reports) and must
+// always be in the running, not crowded out of the top candidates by those hadith.
+type Lists = { stem: Hit[]; tri: Hit[]; vector: Hit[]; quran: Hit[] };
+
+/** Candidate lists per quote text, memoised: retrieval for rule spans starts while the LLM extraction runs. */
+function retriever(env: Bindings) {
+  const memo = new Map<string, Promise<Lists>>();
+  const prefetch = (texts: string[]) => {
+    const fresh = [...new Set(texts)].filter((t) => !memo.has(t));
+    if (!fresh.length) return;
+    const vec = vectorHits(env, fresh, 'fact checking').catch(() => fresh.map(() => [] as Hit[]));
+    fresh.forEach((t, i) =>
+      memo.set(t, Promise.all([settle(stemHits(env, t)), settle(trigramHits(env, t)), vec.then((v) => v[i] ?? []), settle(stemHits(env, t, 'quran', 8))]).then(([stem, tri, vector, quran]) => ({ stem, tri, vector, quran }))),
+    );
+  };
+  return { prefetch, get: (t: string) => (prefetch([t]), memo.get(t)!) };
+}
 const round = (x: number) => Math.round(x * 1000) / 1000;
 
 /** Quran candidates are re-aligned against a window of neighbouring ayat, so a recitation of 26:88-89 matches both. */
@@ -96,34 +121,67 @@ const diffText = (ops: Op[]) =>
     .map((o) => (o.op === 'extra' ? `+${o.spoken}` : o.op === 'missing' ? `-${o.source}` : `${o.spoken}→${o.source}`))
     .join(' ') || '(no differences)';
 
-export async function verify(env: Bindings, segments: Segment[], opts: { judge?: boolean; quoteMode?: boolean; lang?: Lang } = {}) {
+export async function verify(env: Bindings, segments: Segment[], opts: { judge?: boolean; quoteMode?: boolean; lang?: Lang; detector?: Detector } = {}) {
   const lang = opts.lang ?? 'en';
   const t0 = Date.now();
   const timing: Record<string, number> = {};
   const lap = (name: string) => (timing[name] = Date.now() - t0);
-  const spans = detect(segments, { quoteMode: opts.quoteMode });
+  let usage: Usage = { input: 0, output: 0 };
+  const addUsage = (u: Usage) => (usage = { input: usage.input + u.input, output: usage.output + u.output });
+  const degraded: string[] = [];
+
+  // Detection. A typed check in Latin letters (meaning or transliteration) needs the LLM; lectures use both.
+  const latinQuote = opts.quoteMode && !segments.some((s) => hasArabic(s.text));
+  const detector: Detector = opts.detector ?? (latinQuote ? 'llm' : opts.quoteMode ? 'rules' : 'hybrid');
+  const rules = detect(segments, { quoteMode: opts.quoteMode });
+  const lists = retriever(env);
+  lists.prefetch(rules.filter((s) => s.words.length).map((s) => s.words.join(' ')));
+  let spans = rules;
+  if (detector !== 'rules') {
+    try {
+      const x = await extract(env, segments);
+      addUsage(x.usage);
+      spans = detector === 'llm' ? x.spans : mergeSpans(rules, x.spans);
+    } catch (e) {
+      degraded.push(`extract: ${String(e).slice(0, 120)}`);
+    }
+  }
+  if (latinQuote && !spans.length) {
+    // Nothing recognised: treat the whole input as a meaning to look up.
+    const text = lectureText(segments);
+    spans = [makeSpan(segments, text, { a: 0, b: segments[0].text.length }, { spoken: segments[0].text, words: [], meaning: segments[0].text, cue: null, detector: 'rules' })];
+  }
+  // Every map below is keyed by span id, so ids must be unique whichever detector produced the spans.
+  spans = spans.sort((x, y) => x.a - y.a).map((s, i) => ({ ...s, id: i }));
+  lap('detected');
   const quotes = spans.filter((s) => s.words.length);
+  const meanings = spans.filter((s) => s.meaning);
 
   // Candidates: citation said next to the quote, stem FTS, trigram FTS, vectors (one embedding call for all spans).
   const citedRows = new Map<number, UnitRow[]>();
-  const [vectors, lexical] = await Promise.all([
-    vectorHits(env, quotes.map((s) => s.words.join(' ')), 'fact checking').catch(() => quotes.map(() => [] as Hit[])),
-    Promise.all(quotes.map((s) => Promise.all([settle(stemHits(env, s.words.join(' '))), settle(trigramHits(env, s.words.join(' ')))]))),
+  lists.prefetch(quotes.map((s) => s.words.join(' ')));
+  const meaningTexts = meanings.map((s) => s.meaning!);
+  const [meaningVectors, lexical, meaningLexical] = await Promise.all([
+    meaningTexts.length ? vectorHits(env, meaningTexts, 'fact checking').catch(() => meaningTexts.map(() => [] as Hit[])) : [],
+    Promise.all(quotes.map((s) => lists.get(s.words.join(' ')))),
+    Promise.all(meanings.map((s) => settle(latinHits(env, s.meaning!)))),
     Promise.all(spans.filter((s) => s.citation).map(async (s) => citedRows.set(s.id, await resolveCitation(env.CORPUS, s.citation!)))),
   ]);
   lap('candidates');
+  const meaningFused = meanings.map((_, i) => rrf({ latin: meaningLexical[i], vector: meaningVectors[i] ?? [] }).slice(0, 5));
   const fused = quotes.map((s, i) => {
     const cited = (citedRows.get(s.id) ?? []).map((r, k) => ({ key: r.key, rank: k + 1 }));
-    const top = rrf({ cited, stem: lexical[i][0], tri: lexical[i][1], vector: vectors[i] ?? [] }).slice(0, TOP_CANDIDATES);
+    const top = rrf({ cited, ...lexical[i] }).slice(0, TOP_CANDIDATES);
     // The key the speaker named is always aligned, however low it ranked.
     for (const c of cited) if (!top.some((t) => t.key === c.key)) top.push({ key: c.key, score: 0, via: { cited: c.rank } });
     return top;
   });
 
   const quranKeys = fused.flat().map((f) => f.key).filter((k) => k.startsWith('quran:'));
-  const [rows, windows] = await Promise.all([
+  const [rows, windows, meaningRows] = await Promise.all([
     unitsByKeys(env.CORPUS, fused.flat().map((f) => f.key), LIGHT_COLS),
     quranWindows(env.CORPUS, [...new Set(quranKeys)]),
+    unitsByKeys(env.CORPUS, meaningFused.flat().map((f) => f.key)),
   ]);
 
   // Align every candidate; keep the best by alignment score, the rest become "near" matches.
@@ -154,12 +212,12 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
 
   lap('aligned');
   // Full rows (text, grades, narrators) only for what will be shown; loads while the judge runs.
-  const shown = spans.flatMap((s) => (s.words.length ? best.get(s.id)?.match?.rows ?? [] : citedRows.get(s.id) ?? []));
+  const shown = spans.flatMap((s) => (s.words.length ? best.get(s.id)?.match?.rows ?? [] : s.meaning ? [] : citedRows.get(s.id) ?? []));
   const fullRows = unitsByKeys(env.CORPUS, shown.map((r) => r.key));
   const details = new Map<number, Promise<Awaited<ReturnType<typeof detail>>>>();
   for (const s of spans) {
     const m = best.get(s.id)?.match;
-    const rs = s.words.length ? m?.rows : citedRows.get(s.id);
+    const rs = s.words.length ? m?.rows : s.meaning ? undefined : citedRows.get(s.id);
     if (rs?.length) details.set(s.id, fullRows.then((full) => detail(env, full.get(rs[0].key) ?? rs[0], rs.map((r) => full.get(r.key) ?? r), lang)));
   }
 
@@ -178,23 +236,46 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
       });
     }
   }
-  let usage: Usage = { input: 0, output: 0 };
+  const meaningItems: MeaningItem[] = meanings.map((s, i) => ({
+    id: s.id,
+    said: s.meaning!,
+    candidates: meaningFused[i].flatMap((f) => {
+      const r = meaningRows.get(f.key);
+      return r ? [{ key: r.key, reference: reference(r, lang), ar: r.ar_matn.slice(0, 600), en: (r.en_text ?? '').slice(0, 600) }] : [];
+    }),
+  }));
   let verdicts = new Map<number, { label: string; reason: string; confidence: number }>();
-  if (grey.length && opts.judge !== false) {
-    try {
-      const j = await judge(env, grey, lang);
-      verdicts = j.results;
-      usage = j.usage;
-    } catch (e) {
-      console.error('judge failed', e);
-    }
+  let meaningVerdicts = new Map<number, { key: string | null; reason: string; confidence: number }>();
+  if (opts.judge !== false) {
+    const [g, m] = await Promise.allSettled([judge(env, grey, lang), judgeMeaning(env, meaningItems, lang)]);
+    if (g.status === 'fulfilled') (verdicts = g.value.results), addUsage(g.value.usage);
+    else degraded.push(`judge: ${String(g.reason).slice(0, 120)}`);
+    if (m.status === 'fulfilled') (meaningVerdicts = m.value.results), addUsage(m.value.usage);
+    else degraded.push(`meaning judge: ${String(m.reason).slice(0, 120)}`);
   }
 
   lap('judged');
   const refs: Verdict[] = [];
   for (const s of spans) {
-    const base = { id: s.id, spoken: s.spoken, start: s.start, end: s.end, segments: s.segments, cue: s.cue };
+    const base = { id: s.id, spoken: s.spoken, start: s.start, end: s.end, segments: s.segments, cue: s.cue, detector: s.detector };
     const cited = citedRows.get(s.id) ?? [];
+    if (s.meaning) {
+      const j = meaningVerdicts.get(s.id);
+      const row = j?.key ? meaningRows.get(j.key) : undefined;
+      const near = meaningItems.find((x) => x.id === s.id)?.candidates.slice(0, 3).map((c) => ({ key: c.key, reference: c.reference, similarity: 0 })) ?? [];
+      if (!row) {
+        refs.push({ ...base, meaning: true, status: 'not_found_in_corpus', text_status: 'not_found_in_corpus', confidence: j?.confidence ?? 0.5, decided_by: 'judge', reason: j?.reason, near });
+        continue;
+      }
+      const d = await detail(env, row, [row], lang);
+      refs.push({
+        ...base, meaning: true, status: WEAK.has(row.grade_status ?? '') ? 'weak_or_disputed' : 'paraphrase', text_status: 'paraphrase',
+        confidence: j!.confidence, decided_by: 'judge', reason: j!.reason, ...d,
+        near: near.filter((n) => n.key !== row.key),
+        ...(s.citation ? { citation: citationCheck(s, cited, [row], d.family ?? []) } : {}),
+      });
+      continue;
+    }
     if (!s.words.length) {
       // A reference said without quoting the text.
       const row = cited[0];
@@ -247,20 +328,23 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
       metrics: { similarity: round(match.al.similarity), coverage: round(match.al.coverage), changed: match.al.changed, extra: match.al.extra, missing: match.al.missing },
       diff: match.al.ops,
       near: nearList.filter((n) => n.key !== match.key).slice(0, 3),
-      ...(s.citation ? { citation: citationCheck(s, cited, match.rows[0], d.family ?? []) } : {}),
+      ...(s.citation ? { citation: citationCheck(s, cited, match.rows, d.family ?? []) } : {}),
     });
   }
 
   const count = (st: Status) => refs.filter((r) => r.status === st).length;
   return {
     refs,
+    groups: groupRefs(refs),
+    detector,
+    degraded,
     summary: {
       total: refs.length,
       quran: refs.filter((r) => r.match?.kind === 'quran').length,
       hadith: refs.filter((r) => r.match?.kind === 'hadith').length,
       verbatim: count('verbatim'), paraphrase: count('paraphrase'), misquote: count('misquote'),
       weak_or_disputed: count('weak_or_disputed'), not_found_in_corpus: count('not_found_in_corpus'), reference: count('reference'),
-      judged: grey.length,
+      judged: grey.length + meaningItems.length,
     },
     usage,
     timing,
@@ -303,11 +387,30 @@ function gradeNote(row: UnitRow, lang: Lang): string | undefined {
   return undefined;
 }
 
-function citationCheck(s: Span, cited: UnitRow[], matched: UnitRow, fam: { key: string; collection: string }[]): Verdict['citation'] {
+/**
+ * One stack per dalil: refs that matched the same unit, the same Quran passage, or the same variant family.
+ * Order follows the first time each was said; refs without a match are not stacked.
+ */
+export function groupRefs(refs: Verdict[]) {
+  const groups = new Map<string, { key: string; reference: string; kind: string; refs: number[]; statuses: Status[]; first: number }>();
+  for (const r of refs) {
+    if (!r.match) continue;
+    const id = r.match.kind === 'quran' ? `quran:${r.match.key.split(':')[1]}:${r.match.key.split(':')[2]}` : (r.match.family_id ?? r.match.key);
+    const g = groups.get(id) ?? { key: r.match.key, reference: r.match.reference, kind: r.match.kind, refs: [], statuses: [], first: r.start };
+    g.refs.push(r.id);
+    g.statuses.push(r.status);
+    groups.set(id, g);
+  }
+  return [...groups.values()].map((g) => ({ ...g, count: g.refs.length })).sort((a, b) => a.first - b.first);
+}
+
+function citationCheck(s: Span, cited: UnitRow[], matchedRows: UnitRow[], fam: { key: string; collection: string }[]): Verdict['citation'] {
   const c = s.citation!;
   const keys = cited.map((r) => r.key);
+  const matched = matchedRows[0];
   let agrees: boolean;
-  if (c.kind === 'quran') agrees = keys.includes(matched.key) || cited.some((r) => r.key.split(':')[1] === matched.key.split(':')[1]);
+  // Quran: the cited ayat must overlap the matched passage (same surah is not enough: [آل عمران:131] for 3:102 is wrong).
+  if (c.kind === 'quran') agrees = keys.some((k) => matchedRows.some((r) => r.key === k));
   else if (c.number) agrees = keys.includes(matched.key) || cited.some((r) => r.family_id && r.family_id === matched.family_id);
   else agrees = matched.collection === c.collection || fam.some((f) => f.collection === c.collection);
   return { said: c.text, keys, agrees };

@@ -20,10 +20,15 @@ HONORIFIC_LIGATURES = re.compile("[ﷺﷻ﵀-﵏]")
 # ىٰ is a long a inside a word (تتوفىٰهم → تتوفاهم) but plain alif maqsura at the end (علىٰ → على).
 YA_DAGGER_MID = re.compile("ىٰ(?=[ً-ٰٟۖ-ۭ]*[ء-ي])")
 LEGACY_YA_DAGGER = False  # True reproduces the 4 Oct index (ىٰ → ا everywhere); tools/reindex_quran.py diffs the two
+# Uthmani writes the vocative joined to the next word (يَٰٓأَيُّهَا، يَٰعِبَادِ); imlaei and speech separate it (يا أيها).
+VOCATIVE = re.compile("(?<![^\\s])\u064a\u064e?\u0670\u0653?")
+LEGACY_VOCATIVE = False
 
 
 def _letters(s):
     # Uthmani: waw carrying a dagger alif is read as alif (الصلوٰة → الصلاة).
+    if not LEGACY_VOCATIVE:
+        s = VOCATIVE.sub("يا ", s)
     s = s.replace("وٰ", "ا")
     s = s.replace("ىٰ", "ا") if LEGACY_YA_DAGGER else YA_DAGGER_MID.sub("ا", s)
     s = HARAKAT.sub("", s).replace("ـ", "")

@@ -1,4 +1,5 @@
 import { collectionByAlias } from '../corpus/collections';
+import { norm } from '../lib/arabic';
 import { SURAHS } from '../corpus/surahs';
 
 // Fast path: spoken or written citations ("QS 2:255", "Al-Baqarah ayat 255", "HR Bukhari no. 1",
@@ -29,6 +30,30 @@ export function surahByName(s: string): number | undefined {
 }
 
 const ayahCount = (s: number) => SURAHS[s - 1]?.[3] ?? 0;
+
+// Arabic surah names (البقرة، آل عمران); "سورة" and the article are optional, one-letter typos tolerated (البقؤة).
+const AR_NAMES = SURAHS.map(([n, , ar]) => [n, norm(ar)] as const);
+const stripArticle = (s: string) => s.replace(/^سوره\s+/, '').replace(/^ال(?=..)/, '');
+function lev1(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+export function surahByArabicName(s: string): number | undefined {
+  const k = stripArticle(norm(s));
+  if (!k) return undefined;
+  const exact = AR_NAMES.find(([, ar]) => stripArticle(ar) === k);
+  if (exact) return exact[0];
+  const near = AR_NAMES.filter(([, ar]) => stripArticle(ar).length >= 4 && lev1(stripArticle(ar), k));
+  return near.length === 1 ? near[0][0] : undefined;
+}
 
 const QURAN_CUE = /\b(qs|q\.s|surah|surat|sura|ayat|ayah|verse|firman)\b/i;
 const FILLER = new Set(['no', 'nomor', 'nomer', 'number', 'num', 'hadits', 'hadis', 'hadith', 'hadist', 'ayat', 'ayah', 'verse', 'ke', 'hr', 'h', 'r', 'riwayat', 'diriwayatkan', 'oleh', 'imam', 'narrated', 'reported', 'by', 'in', 'dalam', 'di', 'kitab', 'qs', 'q', 's', 'surah', 'surat', 'sura', 'bab']);
@@ -79,6 +104,15 @@ export function parseCitations(text: string): Citation[] {
     taken.push([c.start, c.end]);
     out.push(c);
   };
+
+  // [البقرة:203], (آل عمران: 102), [الطور:26-27], سورة البقرة آية 255
+  for (const m of text.matchAll(/[[(]\s*(?:سورة\s+)?([\u0621-\u064a\u064b-\u0652\s]{2,25}?)\s*[:،]\s*([0-9٠-٩]{1,3})(?:\s*[-–]\s*([0-9٠-٩]{1,3}))?\s*[\])]|سورة\s+([\u0621-\u064a\s]{2,25}?)\s*[:،]?\s*(?:الآية|آية|اية)\s*([0-9٠-٩]{1,3})/g)) {
+    const s = surahByArabicName(m[1] ?? m[4]);
+    const num = (x?: string) => (x ? Number(x.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))) : NaN);
+    const a = num(m[2] ?? m[5]), b = Number.isNaN(num(m[3])) ? a : num(m[3]);
+    if (s && a >= 1 && b >= a && b <= ayahCount(s))
+      add({ kind: 'quran', surah: s, from: a, to: b, start: m.index!, end: m.index! + m[0].length, text: m[0] });
+  }
 
   // QS 2:255, QS. Al-Baqarah [2]: 255, (2:255-257)
   for (const m of text.matchAll(/(?:\b(?:QS|Q\.S|surah|surat|sura)\b\.?\s*(?:[A-Za-z'’\- ]{2,25}\s*)?\[?\s*|\()(\d{1,3})\s*\]?\s*:\s*(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?/gi)) {

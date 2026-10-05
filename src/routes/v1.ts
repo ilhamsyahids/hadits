@@ -3,7 +3,7 @@ import { asLang, family, present, resolveKey } from '../corpus/units';
 import type { AppEnv } from '../env';
 import { search } from '../search/search';
 import type { Segment } from '../verify/detect';
-import { verify } from '../verify/verify';
+import { type Detector, verify } from '../verify/verify';
 
 export const v1 = new Hono<AppEnv>();
 
@@ -31,7 +31,7 @@ v1.get('/search', async (c) => {
   });
 });
 
-const VERIFY_VERSION = 'v2';
+const VERIFY_VERSION = 'v3';
 const MAX_SEGMENTS = 2000;
 
 async function hash(s: string) {
@@ -41,18 +41,20 @@ async function hash(s: string) {
 
 // Body: { transcript: { segments: [{ start, end, speaker?, text }] } } for a lecture, or { text } for one quote.
 // lang (en | ar | id, default en) sets the language of references, grade notes and the judge's reason.
+// detector: rules | llm | hybrid (default: hybrid for lectures, rules for an Arabic quote, llm for Latin text).
 v1.post('/verify', async (c) => {
-  const body = await c.req.json<{ transcript?: { segments: Segment[] }; text?: string; judge?: boolean; nocache?: boolean; lang?: string }>();
+  const body = await c.req.json<{ transcript?: { segments: Segment[] }; text?: string; judge?: boolean; nocache?: boolean; lang?: string; detector?: Detector }>();
+  const detector = body.detector && ['rules', 'llm', 'hybrid'].includes(body.detector) ? body.detector : undefined;
   const lang = asLang(body.lang);
   const quoteMode = !body.transcript && typeof body.text === 'string';
   const segments: Segment[] = body.transcript?.segments ?? (quoteMode ? [{ start: 0, end: 0, text: body.text!.slice(0, 4000) }] : []);
   if (!segments.length || segments.length > MAX_SEGMENTS) return c.json({ error: `1..${MAX_SEGMENTS} segments or a text` }, 400);
-  const key = `verify:${VERIFY_VERSION}:${await hash(JSON.stringify([segments, quoteMode, body.judge !== false, lang]))}`;
+  const key = `verify:${VERIFY_VERSION}:${await hash(JSON.stringify([segments, quoteMode, body.judge !== false, lang, detector]))}`;
   if (!body.nocache) {
     const hit = await c.env.CACHE.get(key, 'json');
     if (hit) return c.json({ ...(hit as object), cached: true });
   }
-  const res = await verify(c.env, segments, { judge: body.judge, quoteMode, lang });
+  const res = await verify(c.env, segments, { judge: body.judge, quoteMode, lang, detector });
   c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(res), { expirationTtl: 60 * 60 * 24 * 7 }));
   return c.json(res);
 });
