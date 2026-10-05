@@ -1,0 +1,40 @@
+---
+import AppShell from '../layouts/AppShell.astro';
+import { SURAHS } from '../corpus/surahs';
+import { localePath, STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+---
+<AppShell title={`${t.browse.quran} · ${t.brand}`} description={t.browse.quranIntro} locale={locale} path="/quran" active="quran">
+  <section class="page">
+    <h1>{t.browse.quran}</h1>
+    <p class="intro">{t.browse.quranIntro}</p>
+    <ol class="surahs">
+      {SURAHS.map(([n, name, ar, count]) => (
+        <li>
+          <a href={localePath(locale, `/quran/${n}`)}>
+            <span class="n">{n}</span>
+            <span class="name">{locale === 'ar' ? ar : name}</span>
+            <span class="ar" lang="ar">{locale === 'ar' ? '' : ar}</span>
+            <span class="count">{count} {t.browse.ayat}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </section>
+</AppShell>
+
+<style>
+  .page { max-width: 900px; margin: 0 auto; padding-top: 24px; }
+  h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .intro { color: var(--muted); margin: 0 0 24px; }
+  .surahs { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+  .surahs a { display: grid; grid-template-columns: 2.4em 1fr auto; grid-template-rows: auto auto; column-gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-small); text-decoration: none; background: var(--surface); min-height: 44px; }
+  .surahs a:hover { border-color: var(--muted); }
+  .n { grid-row: 1 / span 2; color: var(--muted); font-variant-numeric: tabular-nums; align-self: center; }
+  .name { font-weight: 500; }
+  .ar { font-family: var(--scripture); font-size: 1.2rem; grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+  .count { color: var(--muted); font-size: 0.85rem; grid-column: 2; }
+</style>

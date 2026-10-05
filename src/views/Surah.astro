@@ -1,0 +1,57 @@
+---
+import { env } from 'cloudflare:workers';
+import AppShell from '../layouts/AppShell.astro';
+import { surahAyat } from '../corpus/browse';
+import { SURAHS } from '../corpus/surahs';
+import { localePath, STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale; n: number }
+const { locale, n } = Astro.props;
+const t = STRINGS[locale];
+const surah = SURAHS[n - 1];
+const ayat = surah ? await surahAyat(env.CORPUS, n) : [];
+if (!surah) Astro.response.status = 404;
+const href = (p: string) => localePath(locale, p);
+---
+<AppShell title={`${surah ? (locale === 'ar' ? surah[2] : surah[1]) : t.browse.quran} · ${t.brand}`} description={t.browse.quranIntro} locale={locale} path={`/quran/${n}`} active="quran">
+  <section class="page">
+    <a class="back" href={href('/quran')}>{t.browse.allSurahs}</a>
+    {!surah ? <p class="muted">{t.browse.empty}</p> : (
+      <>
+        <header>
+          <h1>{n}. {locale === 'ar' ? surah[2] : surah[1]}</h1>
+          {locale === 'en' && <p class="ar-title" lang="ar">{surah[2]}</p>}
+          <p class="muted">{surah[3]} {t.browse.ayat}</p>
+        </header>
+        <ol class="ayat">
+          {ayat.map((a) => (
+            <li id={`a${a.number.split(':')[1]}`}>
+              <a class="num" href={href(`/${a.key}`)}>{a.number}</a>
+              <p class="scripture" lang="ar">{a.ar_matn}</p>
+              {locale === 'en' && a.en_text && <p class="en">{a.en_text}</p>}
+            </li>
+          ))}
+        </ol>
+        <nav class="foot">
+          {n > 1 ? <a href={href(`/quran/${n - 1}`)} rel="prev">{t.browse.prev}: {locale === 'ar' ? SURAHS[n - 2][2] : SURAHS[n - 2][1]}</a> : <span></span>}
+          {n < 114 && <a href={href(`/quran/${n + 1}`)} rel="next">{t.browse.next}: {locale === 'ar' ? SURAHS[n][2] : SURAHS[n][1]}</a>}
+        </nav>
+      </>
+    )}
+  </section>
+</AppShell>
+
+<style>
+  .page { max-width: 820px; margin: 0 auto; padding-top: 16px; }
+  .back { color: var(--muted); text-underline-offset: 3px; display: inline-block; padding: 10px 0; }
+  h1 { font-size: 1.8rem; font-weight: 500; margin: 8px 0 0; }
+  .ar-title { font-family: var(--scripture); font-size: 1.6rem; margin: 0; }
+  .muted { color: var(--muted); margin: 0; }
+  .ayat { list-style: none; padding: 0; margin: 24px 0 0; display: flex; flex-direction: column; }
+  .ayat li { padding: 16px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
+  .num { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; text-underline-offset: 3px; display: inline-block; min-height: 32px; }
+  .scripture { margin: 4px 0; }
+  .en { color: var(--muted); margin: 0; }
+  .foot { display: flex; justify-content: space-between; gap: 12px; margin: 32px 0; flex-wrap: wrap; }
+  .foot a { color: var(--muted); text-underline-offset: 3px; padding: 10px 0; }
+</style>

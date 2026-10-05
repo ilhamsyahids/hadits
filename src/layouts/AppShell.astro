@@ -4,7 +4,7 @@ import Base from './Base.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
-interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'lectures' | null }
+interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'quran' | 'hadith' | 'lectures' | null }
 const { title, description, locale, path, active = null } = Astro.props;
 const t = STRINGS[locale];
 type Item = { id: string; title: string; lang: string; duration: number };
@@ -29,6 +29,14 @@ const href = (p: string) => localePath(locale, p);
         <a href={href('/ask')} aria-current={active === 'ask' ? 'page' : undefined}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5h14v10H10l-5 4z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" /></svg>
           {t.nav.ask}
+        </a>
+        <a href={href('/quran')} aria-current={active === 'quran' ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 6c3-1.5 5.5-1.5 8 0v13c-2.5-1.5-5-1.5-8 0zM20 6c-3-1.5-5.5-1.5-8 0v13c2.5-1.5 5-1.5 8 0z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" /></svg>
+          {t.nav.quran}
+        </a>
+        <a href={href('/hadith')} aria-current={active === 'hadith' ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 4h10l2 2v14H6zM9 9h6M9 13h6M9 17h4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round" /></svg>
+          {t.nav.hadith}
         </a>
         <a href={href('/lectures')} aria-current={active === 'lectures' ? 'page' : undefined}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5h14M5 10h14M5 15h9M5 20h6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" /></svg>

@@ -1,0 +1,53 @@
+---
+import { env } from 'cloudflare:workers';
+import AppShell from '../layouts/AppShell.astro';
+import { collectionsList } from '../corpus/browse';
+import { collection } from '../corpus/collections';
+import { localePath, STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+const list = await collectionsList(env.CORPUS, env.CACHE).catch(() => []);
+const groups = (['core', 'anthology', 'other'] as const).map((g) => ({ g, items: list.filter((c) => c.group === g) })).filter((x) => x.items.length);
+const fmt = new Intl.NumberFormat(locale === 'ar' ? 'ar' : 'en');
+---
+<AppShell title={`${t.browse.hadith} · ${t.brand}`} description={t.browse.hadithIntro} locale={locale} path="/hadith" active="hadith">
+  <section class="page">
+    <h1>{t.browse.hadith}</h1>
+    <p class="intro">{t.browse.hadithIntro}</p>
+    {!list.length && <p class="intro">{t.browse.empty}</p>}
+    {groups.map(({ g, items }) => (
+      <section>
+        <h2>{t.browse.groups[g]}</h2>
+        <ul class="colls">
+          {items.map((c) => {
+            const meta = collection(c.id)!;
+            return (
+              <li>
+                <a href={localePath(locale, `/hadith/${c.id}`)}>
+                  <span class="name">{locale === 'ar' ? meta.ar : meta.en}</span>
+                  {locale === 'en' && <span class="ar" lang="ar">{meta.ar}</span>}
+                  <span class="count">{fmt.format(c.count)} {t.browse.hadithCount}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    ))}
+  </section>
+</AppShell>
+
+<style>
+  .page { max-width: 900px; margin: 0 auto; padding-top: 24px; }
+  h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 0.95rem; font-weight: 500; color: var(--muted); margin: 28px 0 10px; }
+  .intro { color: var(--muted); margin: 0 0 8px; }
+  .colls { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+  .colls a { display: flex; flex-direction: column; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-small); text-decoration: none; background: var(--surface); min-height: 44px; }
+  .colls a:hover { border-color: var(--muted); }
+  .name { font-weight: 500; }
+  .ar { font-family: var(--scripture); font-size: 1.15rem; }
+  .count { color: var(--muted); font-size: 0.85rem; }
+</style>
