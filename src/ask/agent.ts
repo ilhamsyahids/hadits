@@ -1,0 +1,69 @@
+import { createGoogle } from '@ai-sdk/google';
+import { AIChatAgent, type OnChatMessageOptions } from '@cloudflare/ai-chat';
+import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, isStepCount, streamText, toUIMessageStream, type UIMessage } from 'ai';
+import { asLang } from '../corpus/units';
+import type { Bindings } from '../env';
+import { instructions } from './prompt';
+import { makeTools, type Seen } from './tools';
+
+// Ask: one Durable Object per conversation (history in its SQLite, streams survive a closed tab).
+// Turn shape: a forced parallel search round, up to two steps to expand or search again, then an answer-only step.
+
+export type AskData = {
+  progress: { label: string; kind: 'search' | 'read' | 'web' };
+  citations: { ids: string[] };
+};
+export type AskMessage = UIMessage<unknown, AskData>;
+
+const MAX_STEPS = 4;
+const MAX_TURNS = 30;
+
+export class AskAgent extends AIChatAgent<Bindings> {
+  maxPersistedMessages = 80;
+
+  async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
+    const env = this.env;
+    const body = (options?.body ?? {}) as { lang?: string; lectureId?: string };
+    const lang = asLang(body.lang);
+    const lectureId = typeof body.lectureId === 'string' ? body.lectureId : null;
+    const lecture = lectureId ? await env.CACHE.get<{ title: string }>(`lecture:${lectureId}`, 'json') : null;
+
+    const stream = createUIMessageStream<AskMessage>({
+      originalMessages: this.messages as AskMessage[],
+      execute: async ({ writer }) => {
+        if (this.messages.filter((m) => m.role === 'user').length > MAX_TURNS) {
+          writer.write({ type: 'text-start', id: 'limit' });
+          writer.write({ type: 'text-delta', id: 'limit', delta: 'This conversation is long enough. Please start a new one.' });
+          writer.write({ type: 'text-end', id: 'limit' });
+          return;
+        }
+        const seen: Seen = new Set();
+        const google = createGoogle({
+          apiKey: env.GEMINI_API_KEY,
+          ...(env.CF_AIG_TOKEN
+            ? {
+                baseURL: `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.AI_GATEWAY_ID}/google-ai-studio/v1beta`,
+                headers: { 'cf-aig-authorization': `Bearer ${env.CF_AIG_TOKEN}`, 'cf-aig-skip-cache': 'true' },
+              }
+            : {}),
+        });
+        const result = streamText({
+          model: google(env.LLM_MODEL),
+          instructions: instructions({ lang, lecture: lecture ? { title: lecture.title } : null }),
+          messages: await convertToModelMessages(this.messages),
+          tools: makeTools({ env, writer, seen, lang, lectureId: lecture ? lectureId : null }),
+          stopWhen: isStepCount(MAX_STEPS),
+          prepareStep: ({ stepNumber }) =>
+            stepNumber === 0 ? { toolChoice: 'required' as const } : stepNumber === MAX_STEPS - 1 ? { toolChoice: 'none' as const } : {},
+          providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
+          abortSignal: options?.abortSignal,
+        });
+        writer.merge(toUIMessageStream({ stream: result.stream }));
+        await result.text;
+        // Everything the tools returned this turn: the page hides citations and scripture tags outside this set.
+        writer.write({ type: 'data-citations', data: { ids: [...seen] } });
+      },
+    });
+    return createUIMessageStreamResponse({ stream });
+  }
+}

@@ -17,11 +17,19 @@
     "sample": "python3 tools/build_sample.py"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4",
+    "@ai-sdk/vue": "^4",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/vue": "^7",
+    "@cloudflare/ai-chat": "^0.12.1",
+    "agents": "^0.26.0",
+    "ai": "^7",
     "astro": "^7.3.5",
+    "dompurify": "^3.4.16",
     "hono": "^4.13.13",
-    "vue": "^3"
+    "marked": "^18.0.14",
+    "vue": "^3",
+    "zod": "^4"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
