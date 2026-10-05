@@ -14,7 +14,7 @@ const SYSTEM = `You find every place in a lecture transcript where the speaker q
 For each one return:
 - segment: the number in brackets of the segment where it is said
 - quote: copy the quoted words exactly as they appear in that segment, character for character. Arabic quotes: only the quoted words, without the introduction (قال رسول الله ﷺ، Allah berfirman, Rasulullah bersabda) and without the reference after it. Meaning-only: the sentence part that gives the meaning. Do not fix spelling, do not translate, do not add words.
-- form: "arabic" (Arabic words are quoted), "meaning" (only the meaning is given in another language, no Arabic), "transliteration" (Arabic words written in Latin letters), "reference" (only a reference such as QS 2:255 or HR Muslim 1, nothing quoted)
+- form: "arabic" (the words of the verse or hadith are quoted), "meaning" (only the meaning is given, in the speaker's own words: in another language, or in Arabic retold, e.g. "أخبرنا النبي ﷺ أن ابتسامتك في وجه أخيك صدقة", "بيّن النبي أن…"), "transliteration" (Arabic words written in Latin letters), "reference" (only a reference such as QS 2:255 or HR Muslim 1, nothing quoted)
 - kind: "quran", "hadith" or "unknown"
 - reference: the reference said with it, exactly as said (e.g. "HR Bukhari", "[البقرة:203]"), or null
 - arabic: only for "transliteration": the same words written in Arabic letters as pronounced; otherwise null
