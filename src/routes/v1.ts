@@ -6,7 +6,7 @@ import type { Segment } from '../verify/detect';
 import { type Detector, verify } from '../verify/verify';
 import type { Doc, DocIndexItem } from '../lectures/doc';
 import { guessLang, parseText } from '../lectures/parse';
-import { buildReport, cachedReport, reportKey, VERIFY_VERSION } from '../lectures/report';
+import { buildReport, cachedReport, decisionsKey, reportKey, VERIFY_VERSION } from '../lectures/report';
 
 export const v1 = new Hono<AppEnv>();
 
@@ -138,6 +138,7 @@ v1.delete('/documents/:id', async (c) => {
     c.env.CACHE.delete(`lecture:${id}`),
     c.env.CACHE.delete(`doc:hash:${doc.submitted.text_hash}`),
     ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(reportKey(id, l))),
+    c.env.CACHE.delete(decisionsKey(id)),
   ]);
   return c.json({ deleted: id });
 });
