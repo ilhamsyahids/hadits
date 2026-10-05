@@ -3,22 +3,31 @@ import { computed, nextTick, onMounted, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
 
-// Lecture report: GET /v1/lectures/:id/report (cached after the first run) → timeline + one stack per dalil.
+// Lecture report: GET /v1/lectures/:id/report (cached after the first run) → overview + one stack per dalil, and
+// the full text as it was checked, with each quote marked where it was found (span offsets a/b in the joined text).
 
 type Group = { key: string; reference: string; kind: string; refs: number[]; statuses: string[]; count: number };
 type Report = { refs: Verdict[]; groups: Group[]; summary: Record<string, number> };
 type Filter = 'all' | 'attention' | 'quran' | 'hadith';
 
-const props = defineProps<{ id: string; duration: number; t: Strings; lang: 'en' | 'ar' }>();
+type Seg = { text: string; section: string | null; start: number };
+const props = defineProps<{ id: string; duration: number; timing: 'audio' | 'position'; segments: Seg[]; textLang: string; t: Strings; lang: 'en' | 'ar' }>();
 const state = ref<'loading' | 'done' | 'error'>('loading');
 const report = ref<Report | null>(null);
 const filter = ref<Filter>('all');
+const view = ref<'findings' | 'text'>('findings');
 
 // Most serious first: a stack leads with the occurrence that needs the reader's attention.
 const SEVERITY: Record<string, number> = { misquote: 0, not_found_in_corpus: 1, weak_or_disputed: 2, paraphrase: 3, reference: 4, verbatim: 5 };
 const attention = (r: Verdict) => ['misquote', 'weak_or_disputed', 'not_found_in_corpus'].includes(r.status) || r.citation?.agrees === false;
 const tone = (s: string) => ({ verbatim: 'ok', paraphrase: 'ok', reference: 'ok', misquote: 'warn', weak_or_disputed: 'warn' })[s] ?? 'none';
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+// Where a quote is: its time in a timed transcript, otherwise its paragraph.
+const segOf = (r: Verdict) => r.segments?.[0] ?? Math.max(0, props.segments.findIndex((s) => s.start >= r.start));
+const para = (i: number) => props.t.report.para.replace('{n}', String(i + 1));
+const where = (r: Verdict) => (props.timing === 'audio' ? clock(r.start) : para(segOf(r)));
+const place = (r: Verdict) =>
+  props.timing === 'audio' ? r.start / Math.max(1, props.duration) : (segOf(r) + 0.5) / Math.max(1, props.segments.length);
 
 async function load() {
   state.value = 'loading';
@@ -27,6 +36,9 @@ async function load() {
     if (!res.ok) throw new Error(String(res.status));
     report.value = await res.json();
     state.value = 'done';
+    // A link to a paragraph (#p12, e.g. from an Ask citation) opens the full text there.
+    const p = /^#p(\d+)$/.exec(location.hash);
+    if (p) showInText(Number(p[1]));
   } catch {
     state.value = 'error';
   }
@@ -68,6 +80,7 @@ function jump(refId: number) {
   const s = stackOf(refId);
   if (!s) return;
   filter.value = 'all';
+  view.value = 'findings';
   // After the filter re-renders: move focus to the stack (keyboard users land on it), then bring it into view.
   nextTick(() => {
     const el = document.getElementById(s.id);
@@ -75,6 +88,42 @@ function jump(refId: number) {
     el?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   });
 }
+function showInText(i: number) {
+  view.value = 'text';
+  nextTick(() => {
+    const el = document.getElementById(`p${i}`);
+    el?.focus({ preventScroll: true });
+    el?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  });
+}
+
+// The full text in paragraphs, split into plain pieces and marked quotes. Offsets follow lectureText() on the
+// server: each segment's text joined with a newline.
+type Piece = { text: string; ref?: Verdict };
+const paragraphs = computed(() => {
+  const refs = (report.value?.refs ?? []).filter((r) => r.a != null && r.b != null);
+  let from = 0;
+  return props.segments.map((seg, i) => {
+    const to = from + seg.text.length;
+    const marks = refs
+      .filter((r) => r.a! < to && r.b! > from)
+      .map((r) => ({ a: Math.max(r.a!, from) - from, b: Math.min(r.b!, to) - from, r }))
+      .sort((x, y) => x.a - y.a);
+    const pieces: Piece[] = [];
+    let last = 0;
+    for (const m of marks) {
+      if (m.a < last) continue;
+      if (m.a > last) pieces.push({ text: seg.text.slice(last, m.a) });
+      pieces.push({ text: seg.text.slice(m.a, m.b), ref: m.r });
+      last = m.b;
+    }
+    if (last < seg.text.length) pieces.push({ text: seg.text.slice(last) });
+    const heading = seg.section && seg.section !== props.segments[i - 1]?.section ? seg.section : null;
+    from = to + 1;
+    return { i, pieces, heading };
+  });
+});
+
 const filters = computed<{ id: Filter; label: string }[]>(() => [
   { id: 'all', label: props.t.report.filterAll },
   { id: 'attention', label: props.t.report.filterAttention },
@@ -103,37 +152,64 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
           :key="r.id"
           type="button"
           :class="['tick', tone(r.status)]"
-          :style="{ insetInlineStart: `${Math.min(99, (r.start / Math.max(1, duration)) * 100)}%` }"
-          :aria-label="`${clock(r.start)} ${t.status[r.status]} ${r.match?.reference ?? ''}`"
-          :title="`${clock(r.start)} · ${r.match?.reference ?? t.status[r.status]}`"
+          :style="{ insetInlineStart: `${Math.min(99, place(r) * 100)}%` }"
+          :aria-label="`${where(r)} ${t.status[r.status]} ${r.match?.reference ?? ''}`"
+          :title="`${where(r)} · ${r.match?.reference ?? t.status[r.status]}`"
           @click="jump(r.id)"
         ></button>
       </div>
-      <p class="axis"><span>0:00</span><span>{{ clock(duration) }}</span></p>
-      <div class="filters" role="group">
-        <button v-for="f in filters" :key="f.id" type="button" :aria-pressed="filter === f.id" @click="filter = f.id">{{ f.label }}</button>
+      <p v-if="timing === 'audio'" class="axis"><span>0:00</span><span>{{ clock(duration) }}</span></p>
+      <p v-else class="axis"><span>{{ para(0) }}</span><span>{{ para(segments.length - 1) }}</span></p>
+      <div class="bar">
+        <div class="views" role="group">
+          <button type="button" :aria-pressed="view === 'findings'" @click="view = 'findings'">{{ t.report.findings }}</button>
+          <button type="button" :aria-pressed="view === 'text'" @click="view = 'text'">{{ t.report.fullText }}</button>
+        </div>
+        <div v-if="view === 'findings'" class="filters" role="group">
+          <button v-for="f in filters" :key="f.id" type="button" :aria-pressed="filter === f.id" @click="filter = f.id">{{ f.label }}</button>
+        </div>
       </div>
     </section>
 
+    <template v-if="view === 'findings'">
     <p v-if="!visible.length" class="state">{{ t.report.noneInFilter }}</p>
     <section v-for="s in visible" :id="s.id" :key="s.id" class="stack" tabindex="-1">
       <p class="when">
-        <span class="time">{{ clock(s.lead.start) }}</span>
+        <button type="button" class="time" :aria-label="t.report.showInText.replace('{n}', String(segOf(s.lead) + 1))" @click="showInText(segOf(s.lead))">{{ where(s.lead) }}</button>
         <span v-if="s.others.length" class="times">{{ t.report.quoted }} {{ s.others.length + 1 }} {{ t.report.times }}</span>
       </p>
       <VerdictCard :v="s.lead" :t="t" :lang="lang" />
       <details v-if="s.others.length" class="others">
-        <summary>{{ t.report.otherTimes }} {{ s.others.map((o) => clock(o.start)).join(', ') }}</summary>
+        <summary>{{ t.report.otherTimes }} {{ s.others.map((o) => where(o)).join(', ') }}</summary>
         <ul>
           <li v-for="o in s.others" :key="o.id">
-            <span class="time">{{ clock(o.start) }}</span>
+            <button type="button" class="time" :aria-label="t.report.showInText.replace('{n}', String(segOf(o) + 1))" @click="showInText(segOf(o))">{{ where(o) }}</button>
             <span :class="['state-word', tone(o.status)]">{{ t.status[o.status] }}</span>
             <span class="spoken" dir="auto">{{ o.spoken }}</span>
           </li>
         </ul>
       </details>
     </section>
+    </template>
   </template>
+
+  <!-- The text is readable while the report is built, and when nothing was found. -->
+  <section v-if="state === 'loading' || (state === 'done' && (view === 'text' || !report?.refs.length))" class="fulltext">
+    <p class="text-intro">{{ t.report.textIntro }}</p>
+    <template v-for="p in paragraphs" :key="p.i">
+      <h3 v-if="p.heading" dir="auto" :lang="textLang">{{ p.heading }}</h3>
+      <p :id="`p${p.i}`" class="para" tabindex="-1">
+        <span class="pn" :aria-label="t.report.paraLabel.replace('{n}', String(p.i + 1))">{{ p.i + 1 }}</span>
+        <span class="ptext" dir="auto" :lang="textLang"><template v-for="(x, k) in p.pieces" :key="k"><a
+          v-if="x.ref"
+          :href="`#${stackOf(x.ref.id)?.id ?? ''}`"
+          :class="['hl', tone(x.ref.status)]"
+          :title="`${x.ref.match?.reference ?? ''} · ${t.status[x.ref.status]}`"
+          @click.prevent="jump(x.ref.id)"
+        >{{ x.text }}</a><template v-else>{{ x.text }}</template></template></span>
+      </p>
+    </template>
+  </section>
 </template>
 
 <style scoped>
@@ -153,13 +229,29 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
 .tick:hover { outline: 2px solid var(--text); outline-offset: 1px; }
 .tick::after { content: ''; position: absolute; inset: -8px -6px; }
 .axis { display: flex; justify-content: space-between; color: var(--subtle); font-size: 0.8rem; margin: 4px 0 12px; }
-.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
+.views, .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.views { padding: 3px; border: 1px solid var(--line); border-radius: 22px; }
+.views button { border: 0; background: transparent; border-radius: 18px; padding: 6px 16px; min-height: 36px; cursor: pointer; color: var(--muted); }
+.views button[aria-pressed='true'] { background: var(--surface-2); color: var(--text); font-weight: 500; }
 .filters button { border: 1px solid var(--line); background: transparent; border-radius: 20px; padding: 6px 14px; min-height: 40px; cursor: pointer; color: var(--text); }
 .filters button[aria-pressed='true'] { background: var(--invert-bg); color: var(--invert-text); border-color: var(--invert-bg); }
 .stack { margin: 22px 0; outline: none; scroll-margin-top: 190px; }
 .stack:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: var(--r-card); }
 .when { display: flex; gap: 12px; align-items: baseline; margin: 0 0 8px; color: var(--muted); font-size: 0.92rem; }
-.time { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
+.time { font: inherit; font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; background: none; border: 0; padding: 4px 0; min-height: 32px; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.time:hover { text-decoration-color: currentColor; }
+.fulltext { padding: 8px 0 40px; }
+.text-intro { color: var(--muted); margin: 8px 0 20px; font-size: 0.93rem; }
+.fulltext h3 { font-size: 1rem; font-weight: 500; margin: 28px 0 8px; }
+.para { display: grid; grid-template-columns: 2.6em 1fr; gap: 8px; margin: 0 0 14px; line-height: 1.75; outline: none; scroll-margin-top: 200px; border-radius: var(--r-small); }
+.para:focus-visible, .para:target { background: var(--surface); }
+.pn { color: var(--subtle); font-size: 0.82rem; font-variant-numeric: tabular-nums; padding-top: 0.3em; text-align: end; }
+.ptext:lang(ar) { font-family: var(--scripture); font-size: 1.18rem; line-height: 2; }
+.hl { color: inherit; text-decoration: none; border-radius: 3px; padding: 1px 2px; background: color-mix(in srgb, var(--none) 22%, transparent); box-shadow: inset 0 -2px 0 var(--none); }
+.hl.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); box-shadow: inset 0 -2px 0 var(--ok); }
+.hl.warn { background: color-mix(in srgb, var(--warn) 22%, transparent); box-shadow: inset 0 -2px 0 var(--warn); }
+.hl:hover, .hl:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .others { margin-top: 8px; padding: 0 4px; }
 .others summary { cursor: pointer; color: var(--muted); padding: 8px 0; min-height: 40px; }
 .others ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -167,6 +259,6 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
 .state-word { font-size: 0.9rem; } .state-word.ok { color: var(--ok); } .state-word.warn { color: var(--warn); } .state-word.none { color: var(--none); }
 .spoken { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 /* On a phone the overview would cover half the screen if it stuck, so it scrolls away. */
-@media (max-width: 720px) { .overview { position: static; } .others li { grid-template-columns: auto 1fr; } .spoken { grid-column: 1 / -1; } .stack { scroll-margin-top: 16px; } }
+@media (max-width: 720px) { .overview { position: static; } .para { scroll-margin-top: 16px; } .others li { grid-template-columns: auto 1fr; } .spoken { grid-column: 1 / -1; } .stack { scroll-margin-top: 16px; } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 </style>

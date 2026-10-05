@@ -12,7 +12,7 @@ import { prophetic } from '../lib/prophetic';
 // (<quran key/>, <hadith key/>); this component fills those blocks from /v1/refs, i.e. from the database,
 // and shows a citation only when its id was returned by a tool in that turn.
 
-const props = defineProps<{ t: Strings; lang: 'en' | 'ar'; lectureId?: string | null; lectureTitle?: string | null }>();
+const props = defineProps<{ t: Strings; lang: 'en' | 'ar'; lectureId?: string | null; lectureTitle?: string | null; lectureKind?: string | null }>();
 const a = computed(() => props.t.ask);
 const base = props.lang === 'ar' ? '/ar' : '';
 
@@ -94,7 +94,11 @@ function sourcesOf(parts: Part[]) {
       const id = String(o.id ?? '');
       if (!id || map.has(id)) continue;
       if (id.startsWith('web:')) map.set(id, { id, label: String(o.site ?? o.title ?? id), href: String(o.url ?? ''), kind: 'web' });
-      else if (id.startsWith('lecture:')) map.set(id, { id, label: clock(Number(o.start ?? 0)), href: null, kind: 'lecture' });
+      else if (id.startsWith('lecture:')) {
+        // lecture:{id}#{paragraph}: opens the report's full text at that paragraph.
+        const [doc, i] = id.slice('lecture:'.length).split('#');
+        map.set(id, { id, label: String(o.where ?? clock(Number(o.start ?? 0))), href: `${base}/lectures/${doc}#p${i}`, kind: 'lecture' });
+      }
       else map.set(id, { id, label: String(o.reference ?? id), href: `${base}/${id}`, kind: id.startsWith('quran:') ? 'quran' : 'hadith' });
       // Every source opens in a new tab, so the answer stays where it is.
     }
@@ -202,7 +206,7 @@ function reset() {
 <template>
   <section class="ask">
     <header v-if="!chat.messages.value.length" class="intro">
-      <h1>{{ lectureTitle ? a.lectureHeading : a.heading }}</h1>
+      <h1>{{ !lectureTitle ? a.heading : lectureKind === 'article' ? a.articleHeading : a.lectureHeading }}</h1>
       <p v-if="lectureTitle" class="lecture" dir="auto">{{ lectureTitle }}</p>
       <p class="lede">{{ a.intro }}</p>
     </header>
@@ -240,7 +244,7 @@ function reset() {
     </form>
     <div class="chips">
       <template v-if="!chat.messages.value.length">
-        <button v-for="e in (lectureTitle ? a.lectureExamples : a.examples)" :key="e" type="button" @click="send(e)">{{ e }}</button>
+        <button v-for="e in (lectureTitle ? (lectureKind === 'article' ? a.articleExamples : a.lectureExamples) : a.examples)" :key="e" type="button" @click="send(e)">{{ e }}</button>
       </template>
       <button v-else type="button" @click="reset">{{ a.newChat }}</button>
     </div>
