@@ -2,14 +2,18 @@
 import { env } from 'cloudflare:workers';
 import LectureReport from '../components/LectureReport.vue';
 import AppShell from '../layouts/AppShell.astro';
+import { timingOf, type Doc } from '../lectures/doc';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 interface Props { locale: Locale; id: string }
 const { locale, id } = Astro.props;
 const t = STRINGS[locale];
-type Lecture = { id: string; title: string; lang: string; duration: number; synthetic_timing: boolean; segments: unknown[] };
-const lecture = await env.CACHE.get<Lecture>(`lecture:${id}`, 'json').catch(() => null);
+const lecture = await env.CACHE.get<Doc>(`lecture:${id}`, 'json').catch(() => null);
 if (!lecture) Astro.response.status = 404;
+const timing = lecture ? timingOf(lecture) : 'position';
+// The full text goes to the report as plain data: it is shown exactly as it was checked.
+const segments = lecture?.segments.map((s) => ({ text: s.text, section: s.section ?? null, start: s.start })) ?? [];
+const src = lecture?.source;
 ---
 <AppShell title={`${lecture?.title ?? t.lectures.heading} · ${t.brand}`} description={t.lectures.intro} locale={locale} path={`/lectures/${id}`} active="lectures">
   <section class="page">
@@ -17,11 +21,19 @@ if (!lecture) Astro.response.status = 404;
       <>
         <h1 dir="auto" lang={lecture.lang}>{lecture.title}</h1>
         <p class="meta">
-          {t.lectures.langName[lecture.lang] ?? lecture.lang} · {Math.round(lecture.duration / 60)} {t.lectures.minutes}
-          {lecture.synthetic_timing && <span> · {t.report.estimated}</span>}
+          {t.lectures.kindName[lecture.kind ?? 'lecture']} · {t.lectures.langName[lecture.lang] ?? lecture.lang} ·{' '}
+          {timing === 'audio' ? `${Math.round(lecture.duration / 60)} ${t.lectures.minutes}` : `${segments.length} ${t.lectures.paragraphs}`}
         </p>
-        <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{t.ask.open}</a></p>
-        <LectureReport client:load id={id} duration={lecture.duration} t={t} lang={locale} />
+        {src && (
+          <p class="meta source">
+            {t.lectures.source}:{' '}
+            {src.url ? <a href={src.url} target="_blank" rel="noopener" dir="auto">{src.name}</a> : <span dir="auto">{src.name}</span>}
+            {src.license && <> · {src.license_url ? <a href={src.license_url} target="_blank" rel="noopener">{src.license}</a> : src.license}</>}
+            {src.note && <> · <span dir="auto">{src.note}</span></>}
+          </p>
+        )}
+        <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : t.ask.open}</a></p>
+        <LectureReport client:load id={id} duration={lecture.duration} timing={timing} segments={segments} textLang={lecture.lang} t={t} lang={locale} />
       </>
     ) : (
       <p class="meta">{t.lectures.empty}</p>
@@ -33,6 +45,8 @@ if (!lecture) Astro.response.status = 404;
   .page { max-width: 920px; margin: 0 auto; padding-top: 24px; }
   h1 { font-size: 1.8rem; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em; }
   .meta { color: var(--muted); margin: 0 0 12px; }
+  .source { margin-top: -6px; font-size: 0.92rem; }
+  .source a { color: var(--muted); text-underline-offset: 3px; }
   .ask-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; text-decoration: none; }
   .ask-link:hover { background: var(--surface-2); }
 </style>

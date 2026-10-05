@@ -31,7 +31,7 @@ v1.get('/search', async (c) => {
   });
 });
 
-const VERIFY_VERSION = 'v5';
+const VERIFY_VERSION = 'v6';
 const MAX_SEGMENTS = 2000;
 
 async function hash(s: string) {

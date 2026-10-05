@@ -26,7 +26,7 @@ export class AskAgent extends AIChatAgent<Bindings> {
     const body = (options?.body ?? {}) as { lang?: string; lectureId?: string };
     const lang = asLang(body.lang);
     const lectureId = typeof body.lectureId === 'string' ? body.lectureId : null;
-    const lecture = lectureId ? await env.CACHE.get<{ title: string }>(`lecture:${lectureId}`, 'json') : null;
+    const lecture = lectureId ? await env.CACHE.get<{ title: string; kind?: 'lecture' | 'article' }>(`lecture:${lectureId}`, 'json') : null;
 
     const stream = createUIMessageStream<AskMessage>({
       originalMessages: this.messages as AskMessage[],
@@ -47,7 +47,7 @@ export class AskAgent extends AIChatAgent<Bindings> {
               }
             : {}),
         });
-        const system = instructions({ lang, lecture: lecture ? { title: lecture.title } : null });
+        const system = instructions({ lang, lecture: lecture ? { title: lecture.title, kind: lecture.kind ?? 'lecture' } : null });
         const history = await convertToModelMessages(this.messages);
         const result = streamText({
           model: google(env.LLM_MODEL),

@@ -13,6 +13,9 @@ export type Verdict = {
   status: string;
   spoken: string;
   start: number;
+  a?: number; // span in the joined transcript (lecture reports)
+  b?: number;
+  segments?: number[];
   reason?: string;
   meaning?: boolean;
   match?: { key: string; reference: string; url: string; kind: string; ar: { matn: string; said?: [number, number][] }; en?: string | null; en_isnad?: string | null; range?: string[] };

@@ -2,12 +2,12 @@
 import { env } from 'cloudflare:workers';
 import AppShell from '../layouts/AppShell.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
+import { timingOf, type DocIndexItem } from '../lectures/doc';
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const t = STRINGS[locale];
-type Item = { id: string; title: string; lang: string; duration: number; segments: number };
-const lectures = (await env.CACHE.get<Item[]>('lectures:index', 'json').catch(() => null)) ?? [];
+const lectures = (await env.CACHE.get<DocIndexItem[]>('lectures:index', 'json').catch(() => null)) ?? [];
 ---
 <AppShell title={`${t.lectures.heading} · ${t.brand}`} description={t.lectures.intro} locale={locale} path="/lectures" active="lectures">
   <section class="page">
@@ -19,7 +19,10 @@ const lectures = (await env.CACHE.get<Item[]>('lectures:index', 'json').catch(()
         <li>
           <a href={localePath(locale, `/lectures/${l.id}`)}>
             <span class="title" dir="auto" lang={l.lang}>{l.title}</span>
-            <span class="meta">{t.lectures.langName[l.lang] ?? l.lang} · {Math.round(l.duration / 60)} {t.lectures.minutes} · {l.segments} {t.lectures.segments}</span>
+            <span class="meta">
+              {t.lectures.kindName[l.kind ?? 'lecture']} · {t.lectures.langName[l.lang] ?? l.lang} ·{' '}
+              {timingOf(l) === 'audio' ? `${Math.round(l.duration / 60)} ${t.lectures.minutes}` : `${l.segments} ${t.lectures.paragraphs}`}
+            </span>
             <span class="open">{t.lectures.open}</span>
           </a>
         </li>
