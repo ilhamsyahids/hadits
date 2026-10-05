@@ -8,7 +8,7 @@ import { resolveCitation } from '../search/search';
 import { type Alignment, align, type Op } from './align';
 import { detect, lectureText, makeSpan, type Segment, type Span } from './detect';
 import { extract, mergeSpans } from './extract';
-import { judge, type JudgeItem, judgeMeaning, type MeaningItem } from './judge';
+import { judge, type JudgeItem, judgeMeaning, type MeaningItem, translateReasons } from './judge';
 
 // /v1/verify: transcript → spans (rules, LLM, or both) → candidates → alignment → verdict (+ grey-band judge)
 // → grades and family → groups (the same dalil quoted several times becomes one stack).
@@ -123,7 +123,22 @@ const diffText = (ops: Op[]) =>
 
 const MIN_MEANING_CONFIDENCE = 0.6;
 
-export async function verify(env: Bindings, segments: Segment[], opts: { judge?: boolean; quoteMode?: boolean; lang?: Lang; detector?: Detector } = {}) {
+/**
+ * What a run decided about a text, so a report in another language shows the same findings: the detected spans
+ * (the LLM extraction varies run to run) and each judge decision, with its reason per language.
+ */
+export type Decisions = {
+  spans: Span[];
+  grey: Record<number, { label: string; confidence: number; reasons: Partial<Record<Lang, string>> }>;
+  meaning: Record<number, { key: string | null; confidence: number; reasons: Partial<Record<Lang, string>> }>;
+};
+export type DecisionStore = { load(): Promise<Decisions | null>; save(d: Decisions): void };
+
+export async function verify(
+  env: Bindings,
+  segments: Segment[],
+  opts: { judge?: boolean; quoteMode?: boolean; lang?: Lang; detector?: Detector; decisions?: DecisionStore } = {},
+) {
   const lang = opts.lang ?? 'en';
   const t0 = Date.now();
   const timing: Record<string, number> = {};
@@ -131,15 +146,16 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
   let usage: Usage = { input: 0, output: 0 };
   const addUsage = (u: Usage) => (usage = { input: usage.input + u.input, output: usage.output + u.output });
   const degraded: string[] = [];
+  const saved = opts.decisions ? await opts.decisions.load().catch(() => null) : null;
 
   // Detection. A typed check in Latin letters (meaning or transliteration) needs the LLM; lectures use both.
   const latinQuote = opts.quoteMode && !segments.some((s) => hasArabic(s.text));
   const detector: Detector = opts.detector ?? (latinQuote ? 'llm' : opts.quoteMode ? 'rules' : 'hybrid');
-  const rules = detect(segments, { quoteMode: opts.quoteMode });
+  const rules = saved ? [] : detect(segments, { quoteMode: opts.quoteMode });
   const lists = retriever(env);
   lists.prefetch(rules.filter((s) => s.words.length).map((s) => s.words.join(' ')));
-  let spans = rules;
-  if (detector !== 'rules') {
+  let spans = saved?.spans ?? rules;
+  if (!saved && detector !== 'rules') {
     try {
       const x = await extract(env, segments);
       addUsage(x.usage);
@@ -154,7 +170,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
     spans = [makeSpan(segments, text, { a: 0, b: segments[0].text.length }, { spoken: segments[0].text, words: [], meaning: segments[0].text, cue: null, detector: 'rules' })];
   }
   // Every map below is keyed by span id, so ids must be unique whichever detector produced the spans.
-  spans = spans.sort((x, y) => x.a - y.a).map((s, i) => ({ ...s, id: i }));
+  if (!saved) spans = spans.sort((x, y) => x.a - y.a).map((s, i) => ({ ...s, id: i }));
   lap('detected');
   const quotes = spans.filter((s) => s.words.length);
   const meanings = spans.filter((s) => s.meaning);
@@ -246,14 +262,39 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
       return r ? [{ key: r.key, reference: reference(r, lang), ar: r.ar_matn.slice(0, 600), en: (r.en_text ?? '').slice(0, 600) }] : [];
     }),
   }));
-  let verdicts = new Map<number, { label: string; reason: string; confidence: number }>();
-  let meaningVerdicts = new Map<number, { key: string | null; reason: string; confidence: number }>();
+  const verdicts = new Map<number, { label: string; reason: string; confidence: number }>();
+  const meaningVerdicts = new Map<number, { key: string | null; reason: string; confidence: number }>();
+  const decided: Decisions = { spans, grey: { ...saved?.grey }, meaning: { ...saved?.meaning } };
   if (opts.judge !== false) {
-    const [g, m] = await Promise.allSettled([judge(env, grey, lang), judgeMeaning(env, meaningItems, lang)]);
-    if (g.status === 'fulfilled') (verdicts = g.value.results), addUsage(g.value.usage);
-    else degraded.push(`judge: ${String(g.reason).slice(0, 120)}`);
-    if (m.status === 'fulfilled') (meaningVerdicts = m.value.results), addUsage(m.value.usage);
-    else degraded.push(`meaning judge: ${String(m.reason).slice(0, 120)}`);
+    // Judge only what no earlier run decided; reuse the rest in this language.
+    const [g, m] = await Promise.allSettled([
+      judge(env, grey.filter((x) => !decided.grey[x.id]), lang),
+      judgeMeaning(env, meaningItems.filter((x) => !decided.meaning[x.id]), lang),
+    ]);
+    if (g.status === 'fulfilled') {
+      for (const [id, r] of g.value.results) decided.grey[id] = { label: r.label, confidence: r.confidence, reasons: { [lang]: r.reason } };
+      addUsage(g.value.usage);
+    } else degraded.push(`judge: ${String(g.reason).slice(0, 120)}`);
+    if (m.status === 'fulfilled') {
+      for (const [id, r] of m.value.results) decided.meaning[id] = { key: r.key, confidence: r.confidence, reasons: { [lang]: r.reason } };
+      addUsage(m.value.usage);
+    } else degraded.push(`meaning judge: ${String(m.reason).slice(0, 120)}`);
+
+    // Reasons decided in another language are translated in one call.
+    const used = [...grey.map((x) => decided.grey[x.id]), ...meaningItems.map((x) => decided.meaning[x.id])].filter(Boolean);
+    const missing = used.filter((d) => d.reasons[lang] == null);
+    if (missing.length) {
+      try {
+        const t = await translateReasons(env, missing.map((d) => Object.values(d.reasons)[0] ?? ''), lang);
+        missing.forEach((d, i) => (d.reasons[lang] = t.reasons[i]));
+        addUsage(t.usage);
+      } catch (e) {
+        degraded.push(`translate: ${String(e).slice(0, 120)}`);
+      }
+    }
+    const reasonOf = (d: { reasons: Partial<Record<Lang, string>> }) => d.reasons[lang] ?? Object.values(d.reasons)[0] ?? '';
+    for (const x of grey) if (decided.grey[x.id]) verdicts.set(x.id, { ...decided.grey[x.id], reason: reasonOf(decided.grey[x.id]) });
+    for (const x of meaningItems) if (decided.meaning[x.id]) meaningVerdicts.set(x.id, { ...decided.meaning[x.id], reason: reasonOf(decided.meaning[x.id]) });
   }
 
   lap('judged');
@@ -335,6 +376,7 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
     });
   }
 
+  if (opts.decisions && !degraded.length) opts.decisions.save(decided);
   const count = (st: Status) => refs.filter((r) => r.status === st).length;
   return {
     refs,
