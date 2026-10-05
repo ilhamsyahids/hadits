@@ -26,7 +26,7 @@ export class AskAgent extends AIChatAgent<Bindings> {
     const body = (options?.body ?? {}) as { lang?: string; lectureId?: string };
     const lang = asLang(body.lang);
     const lectureId = typeof body.lectureId === 'string' ? body.lectureId : null;
-    const lecture = lectureId ? await env.CACHE.get<{ title: string; kind?: 'lecture' | 'article' }>(`lecture:${lectureId}`, 'json') : null;
+    const lecture = lectureId ? await env.CACHE.get<{ title: string; kind?: 'lecture' | 'article' | 'text' }>(`lecture:${lectureId}`, 'json') : null;
 
     const stream = createUIMessageStream<AskMessage>({
       originalMessages: this.messages as AskMessage[],

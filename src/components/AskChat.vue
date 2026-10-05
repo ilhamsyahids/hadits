@@ -206,7 +206,7 @@ function reset() {
 <template>
   <section class="ask">
     <header v-if="!chat.messages.value.length" class="intro">
-      <h1>{{ !lectureTitle ? a.heading : lectureKind === 'article' ? a.articleHeading : a.lectureHeading }}</h1>
+      <h1>{{ !lectureTitle ? a.heading : lectureKind === 'article' ? a.articleHeading : lectureKind === 'text' ? a.textHeading : a.lectureHeading }}</h1>
       <p v-if="lectureTitle" class="lecture" dir="auto">{{ lectureTitle }}</p>
       <p class="lede">{{ a.intro }}</p>
     </header>
@@ -244,7 +244,7 @@ function reset() {
     </form>
     <div class="chips">
       <template v-if="!chat.messages.value.length">
-        <button v-for="e in (lectureTitle ? (lectureKind === 'article' ? a.articleExamples : a.lectureExamples) : a.examples)" :key="e" type="button" @click="send(e)">{{ e }}</button>
+        <button v-for="e in (lectureTitle ? (lectureKind === 'lecture' ? a.lectureExamples : a.articleExamples) : a.examples)" :key="e" type="button" @click="send(e)">{{ e }}</button>
       </template>
       <button v-else type="button" @click="reset">{{ a.newChat }}</button>
     </div>

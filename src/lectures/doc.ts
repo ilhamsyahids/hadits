@@ -8,12 +8,12 @@ export type Doc = {
   id: string;
   title: string;
   lang: string;
-  kind?: 'lecture' | 'article';
+  kind?: 'lecture' | 'article' | 'text';
   timing?: 'audio' | 'position';
   duration: number;
   source?: DocSource | null;
   // Set on a reader's submission: when it expires, and the hash of the token that may delete it.
-  submitted?: { created: number; expires: number; token_hash: string } | null;
+  submitted?: { created: number; expires: number; token_hash: string; text_hash: string } | null;
   segments: DocSegment[];
 };
 export type DocIndexItem = { id: string; title: string; lang: string; kind?: Doc['kind']; timing?: Doc['timing']; duration: number; segments: number };

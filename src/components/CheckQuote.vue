@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
+import { looksLikeDocument, submitText } from '../lib/documents';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
 
 // Cek Dalil: one quote, reference or remembered meaning → POST /v1/verify { text } → verdict cards.
+// A whole lecture or article pasted here is saved as a text (POST /v1/documents) and opened as a full report.
 
 const props = defineProps<{ t: Strings; lang: 'en' | 'ar' }>();
 const text = ref('');
 const state = ref<'idle' | 'loading' | 'done' | 'error'>('idle');
 const refs = ref<Verdict[]>([]);
 const results = ref<HTMLElement | null>(null);
+const whole = computed(() => looksLikeDocument(text.value));
+const docError = ref<string | null>(null);
+const base = props.lang === 'ar' ? '/ar' : '';
 
 const examples = computed(() => [
   { label: props.t.exampleLabels.niyyah, text: 'إنما الأعمال بالنيات' },
@@ -23,6 +28,14 @@ async function check(input?: string) {
   const q = text.value.trim();
   if (!q || state.value === 'loading') return;
   state.value = 'loading';
+  docError.value = null;
+  if (looksLikeDocument(q)) {
+    const res = await submitText(q);
+    if ('id' in res) return void (location.href = `${base}/lectures/${res.id}`);
+    docError.value = props.t.submit.errors[res.error];
+    state.value = 'error';
+    return;
+  }
   try {
     const res = await fetch('/v1/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: q, lang: props.lang }) });
     if (!res.ok) throw new Error(String(res.status));
@@ -45,15 +58,17 @@ async function check(input?: string) {
       <textarea id="q" v-model="text" :placeholder="t.placeholder" rows="1" dir="auto" @keydown.enter.exact.prevent="check()" />
       <button type="submit" :disabled="!text.trim() || state === 'loading'">{{ state === 'loading' ? t.checking : t.check }}</button>
     </form>
+    <p v-if="whole" class="whole">{{ t.submit.longHint }}</p>
     <div class="chips" :aria-label="t.examples">
       <button v-for="e in examples" :key="e.text" type="button" @click="check(e.text)">{{ e.label }}</button>
     </div>
+    <p class="more"><a :href="`${base}/lectures`">{{ t.submit.heading }}</a></p>
   </section>
 
   <section ref="results" class="results" tabindex="-1" aria-live="polite">
     <p v-if="state === 'loading'" class="status-line"><span class="spinner" aria-hidden="true"></span>{{ t.checking }}</p>
     <div v-else-if="state === 'error'" class="status-line error">
-      <span>{{ t.error }}</span>
+      <span>{{ docError ?? t.error }}</span>
       <button type="button" class="retry" @click="check()">{{ t.retry }}</button>
     </div>
     <p v-else-if="state === 'done' && !refs.length" class="status-line">{{ t.noQuote }}</p>
@@ -81,6 +96,9 @@ button[type='submit']:disabled { opacity: 0.45; cursor: default; }
 .error { color: var(--warn); }
 .retry { border: 1px solid var(--line); background: transparent; border-radius: var(--r-small); padding: 6px 14px; min-height: 40px; cursor: pointer; }
 .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.whole { color: var(--muted); margin: 10px 0 0; font-size: 0.93rem; }
+.more { margin: 18px 0 0; font-size: 0.93rem; }
+.more a { color: var(--muted); text-underline-offset: 3px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } .ask { transition: none; } }
 </style>
