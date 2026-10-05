@@ -1,18 +1,19 @@
 import { collection, collectionByAlias } from './collections';
+import { saidRanges } from '../lib/prophetic';
 
 // Read side of the D1 corpus: key resolution, row hydration, and the JSON shape every route returns.
 
 export type UnitRow = {
   id: number; key: string; kind: 'quran' | 'hadith'; collection: string; number: string; number_base: number | null; ord?: number | null;
   chapter_en: string | null; chapter_ar: string | null; section_en: string | null; section_ar: string | null; title_en: string | null;
-  ar_isnad: string | null; ar_matn: string; ar_prophetic: string | null; en_isnad?: string | null; en_text: string | null; id_text: string | null;
+  ar_isnad: string | null; ar_matn: string; ar_prophetic: string | null; ar_marked?: string | null; en_isnad?: string | null; en_text: string | null; id_text: string | null;
   ar_norm: string; ar_stem: string; grade_status: string | null; grades_json: string | null; notes_json: string | null;
   narrators_json: string | null; family_id: string | null; parallel_of: string | null; same_as_previous_of: string | null;
   anthologies_json: string | null; url: string | null; sunnah_url: string | null;
 };
 
 const COLS = `id, key, kind, collection, number, number_base, ord, chapter_en, chapter_ar, section_en, section_ar, title_en,
-  ar_isnad, ar_matn, ar_prophetic, en_isnad, en_text, id_text, ar_norm, ar_stem, grade_status, grades_json, notes_json,
+  ar_isnad, ar_matn, ar_prophetic, ar_marked, en_isnad, en_text, id_text, ar_norm, ar_stem, grade_status, grades_json, notes_json,
   narrators_json, family_id, parallel_of, same_as_previous_of, anthologies_json, url, sunnah_url`;
 
 /** Just what alignment and ranking need; full rows are loaded only for the chosen matches. */
@@ -135,7 +136,7 @@ export function present(row: UnitRow, opts: { full?: boolean; lang?: Lang } = {}
     reference: reference(row, opts.lang),
     chapter: row.chapter_en || row.chapter_ar ? { en: row.chapter_en, ar: row.chapter_ar } : null,
     section: row.section_en || row.section_ar ? { en: row.section_en, ar: row.section_ar } : null,
-    ar: { matn: row.ar_matn, prophetic: row.ar_prophetic, ...(opts.full ? { isnad: row.ar_isnad } : {}) },
+    ar: { matn: row.ar_matn, prophetic: row.ar_prophetic, said: saidRanges(row.ar_matn, row.ar_marked), ...(opts.full ? { isnad: row.ar_isnad } : {}) },
     en: row.en_text,
     ...(opts.full ? { en_isnad: row.en_isnad ?? null } : {}),
     id: row.id_text,

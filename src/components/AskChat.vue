@@ -114,7 +114,7 @@ function render(text: string) {
   return DOMPurify.sanitize(html, { ADD_ATTR: ['data-key', 'data-ids'] });
 }
 
-const refCache = new Map<string, Promise<{ reference: string; ar: { matn: string }; en?: string | null; url: string } | null>>();
+const refCache = new Map<string, Promise<{ reference: string; ar: { matn: string; said?: [number, number][] }; en?: string | null; url: string } | null>>();
 const fetchRef = (key: string) => {
   if (!refCache.has(key)) refCache.set(key, fetch(`/v1/refs/${key}?lang=${props.lang}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
   return refCache.get(key)!;
@@ -157,7 +157,7 @@ async function enhance(root: HTMLElement, parts: Part[]) {
     const p = document.createElement('p');
     p.className = key.startsWith('quran:') ? 'scripture quran' : 'scripture';
     p.lang = 'ar';
-    for (const piece of prophetic(u.ar.matn.length > 900 ? `${u.ar.matn.slice(0, 900)}…` : u.ar.matn, 'ar')) {
+    for (const piece of prophetic(u.ar.matn.length > 900 ? `${u.ar.matn.slice(0, 900)}…` : u.ar.matn, 'ar', u.ar.said)) {
       if (!piece.prophetic) p.append(piece.text);
       else Object.assign(p.appendChild(document.createElement('span')), { className: 'prophetic', textContent: piece.text });
     }
