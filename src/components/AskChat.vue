@@ -90,7 +90,9 @@ function sourcesOf(parts: Part[]) {
   const map = new Map<string, Source>();
   for (const p of parts) {
     if (!p.type.startsWith('tool-') || p.state !== 'output-available' || !Array.isArray(p.output)) continue;
-    for (const o of p.output as Record<string, unknown>[]) {
+    // Lecture passages carry the ayat and hadith they cite (search_lecture → cites).
+    const outputs = (p.output as Record<string, unknown>[]).flatMap((o) => [o, ...((o.cites as Record<string, unknown>[] | undefined) ?? [])]);
+    for (const o of outputs) {
       const id = String(o.id ?? '');
       if (!id || map.has(id)) continue;
       if (id.startsWith('web:')) map.set(id, { id, label: String(o.site ?? o.title ?? id), href: String(o.url ?? ''), kind: 'web' });

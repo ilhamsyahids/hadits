@@ -4,6 +4,7 @@ import { family, grades, type Lang, present, reference, resolveKey, unitsByKeys 
 import type { Bindings } from '../env';
 import { norm, stems } from '../lib/arabic';
 import { latinHits, rrf, stemHits, trigramHits, vectorHits, type Hit } from '../search/retrieve';
+import { parseCitations } from '../search/refparse';
 import { domainsFor } from './sites';
 
 // Ask's tools. Each returns compact items whose `id` is what the answer cites; every returned id is recorded in
@@ -66,7 +67,9 @@ export function makeTools(ctx: { env: Bindings; writer: UIMessageStreamWriter; s
   });
 
   const search_lecture = tool({
-    description: 'Search the text of this lecture or article. Returns passages with where they are: a time (m:ss) or a paragraph (¶ n).',
+    description:
+      'Search the text of this lecture or article. Returns passages with where they are: a time (m:ss) or a paragraph (¶ n), ' +
+      'and the ayat and hadith each passage cites (ids you may use in tags and citations).',
     inputSchema: z.object({ query: z.string().describe('Words to look for, in the lecture language or Arabic'), label: z.string() }),
     execute: async ({ query, label }, { toolCallId }) => {
       progress(toolCallId, label, 'search');
@@ -85,12 +88,28 @@ export function makeTools(ctx: { env: Bindings; writer: UIMessageStreamWriter; s
         .filter((x) => x.n > 0)
         .sort((a, b) => b.n - a.n)
         .slice(0, 5);
-      return scored.map(({ i }) => {
+      // What each passage cites ("[البقرة:203]", "HR Muslim 1631"), checked against the corpus: the speaker's own
+      // references become sources the answer may show, like search results.
+      const citedKeys = scored.map(({ i }) =>
+        parseCitations(lecture.segments[i].text).flatMap((c) =>
+          c.kind === 'quran'
+            ? Array.from({ length: Math.min(3, c.to - c.from + 1) }, (_, k) => `quran:${c.surah}:${c.from + k}`)
+            : c.number ? [`${c.collection}:${c.number}`] : [],
+        ),
+      );
+      const rows = await unitsByKeys(env.CORPUS, citedKeys.flat());
+      return scored.map(({ i }, k) => {
         const id = `lecture:${ctx.lectureId}#${i}`;
         seen.add(id);
         const s = lecture.segments[i];
         const where = lecture.timing === 'audio' ? `${Math.floor(s.start / 60)}:${String(Math.floor(s.start % 60)).padStart(2, '0')}` : `¶ ${i + 1}`;
-        return { id, where, text: clip(s.text, 900) };
+        const cites = citedKeys[k].flatMap((key) => {
+          const row = rows.get(key);
+          if (!row) return [];
+          seen.add(key);
+          return [{ id: key, reference: reference(row, ctx.lang) }];
+        });
+        return { id, where, text: clip(s.text, 900), ...(cites.length ? { cites } : {}) };
       });
     },
   });
