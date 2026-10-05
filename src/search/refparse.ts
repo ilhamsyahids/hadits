@@ -14,8 +14,9 @@ export function surahKey(s: string): string {
   let k = s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
   k = k.replace(/sy|sh/g, 's').replace(/dz|dh/g, 'd').replace(/ts|th/g, 't').replace(/kh/g, 'k').replace(/gh/g, 'g');
   k = k.replace(/q/g, 'k').replace(/o/g, 'a').replace(/e/g, 'i').replace(/w/g, 'u').replace(/y/g, 'i');
-  k = k.replace(/(.)\1+/g, '$1');
+  // The article goes before doubled letters are merged: at-Talaq must not become al-'Alaq.
   k = k.replace(/^a[lnstdrz](?=.{3})/, '');
+  k = k.replace(/(.)\1+/g, '$1');
   return k.replace(/h$/, '');
 }
 

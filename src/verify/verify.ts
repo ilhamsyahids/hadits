@@ -121,6 +121,8 @@ const diffText = (ops: Op[]) =>
     .map((o) => (o.op === 'extra' ? `+${o.spoken}` : o.op === 'missing' ? `-${o.source}` : `${o.spoken}→${o.source}`))
     .join(' ') || '(no differences)';
 
+const MIN_MEANING_CONFIDENCE = 0.6;
+
 export async function verify(env: Bindings, segments: Segment[], opts: { judge?: boolean; quoteMode?: boolean; lang?: Lang; detector?: Detector } = {}) {
   const lang = opts.lang ?? 'en';
   const t0 = Date.now();
@@ -261,7 +263,8 @@ export async function verify(env: Bindings, segments: Segment[], opts: { judge?:
     const cited = citedRows.get(s.id) ?? [];
     if (s.meaning) {
       const j = meaningVerdicts.get(s.id);
-      const row = j?.key ? meaningRows.get(j.key) : undefined;
+      // A low-confidence pick is treated as not found: a wrong source is worse than none.
+      const row = j?.key && j.confidence >= MIN_MEANING_CONFIDENCE ? meaningRows.get(j.key) : undefined;
       const near = meaningItems.find((x) => x.id === s.id)?.candidates.slice(0, 3).map((c) => ({ key: c.key, reference: c.reference, similarity: 0 })) ?? [];
       if (!row) {
         refs.push({ ...base, meaning: true, status: 'not_found_in_corpus', text_status: 'not_found_in_corpus', confidence: j?.confidence ?? 0.5, decided_by: 'judge', reason: j?.reason, near });

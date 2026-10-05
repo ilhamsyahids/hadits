@@ -39,7 +39,7 @@ const LANGUAGE = { en: 'English', ar: 'Arabic', id: 'Bahasa Indonesia' } as cons
 
 // Meaning-only mentions ("Nabi bersabda bahwa puasa itu perisai"): pick the source that says the same thing, or none.
 const MEANING_SYSTEM = `A lecturer mentions a verse or hadith only by its meaning, in their own language. For each item you get what was said and up to 5 candidate sources (Arabic with an English translation).
-Return the key of the candidate that the speaker is referring to: the same verse or report, saying the same thing. If none of them says it, return null. A candidate on the same topic that says something else is not a match.
+Return the key of the candidate that the speaker is referring to: the same verse or report, saying the same thing. If none of them says it, return null. A candidate on the same topic that says something else is not a match, and neither is one that merely contains the same word or a short reply ("yes", "virtue"): the said text must carry that candidate's specific content.
 Give a one-sentence reason in {LANGUAGE}. Never write out or correct the Quran or hadith yourself. Confidence is 0..1.`;
 
 const MEANING_SCHEMA = {

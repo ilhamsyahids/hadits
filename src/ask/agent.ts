@@ -16,6 +16,15 @@ export type AskData = {
 export type AskMessage = UIMessage<unknown, AskData>;
 
 const MAX_STEPS = 4;
+// Provider errors after streaming started (overload, a dropped connection) are retried before the reader sees them.
+const STREAM_RETRIES = 2;
+
+/** What the reader (and the Ask eval) sees for an error that survived the retries: its kind, never a stack. */
+const describe = (e: unknown) => {
+  console.error('ask stream error', e);
+  const m = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  return `The answer stopped: ${m.slice(0, 160)}`;
+};
 const MAX_TURNS = 30;
 
 export class AskAgent extends AIChatAgent<Bindings> {
@@ -30,6 +39,7 @@ export class AskAgent extends AIChatAgent<Bindings> {
 
     const stream = createUIMessageStream<AskMessage>({
       originalMessages: this.messages as AskMessage[],
+      onError: describe,
       execute: async ({ writer }) => {
         if (this.messages.filter((m) => m.role === 'user').length > MAX_TURNS) {
           writer.write({ type: 'text-start', id: 'limit' });
@@ -59,9 +69,10 @@ export class AskAgent extends AIChatAgent<Bindings> {
           prepareStep: ({ stepNumber }) =>
             stepNumber === 0 ? { toolChoice: 'required' as const } : stepNumber === MAX_STEPS - 1 ? { toolChoice: 'none' as const, activeTools: [] } : {},
           providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
+          streamRetries: STREAM_RETRIES,
           abortSignal: options?.abortSignal,
         });
-        writer.merge(toUIMessageStream({ stream: result.stream, sendFinish: false }));
+        writer.merge(toUIMessageStream({ stream: result.stream, sendFinish: false, onError: describe }));
         if (!(await result.text).trim()) {
           // The searches ran but no answer was written: one more step, without tools, from what they returned.
           const answer = streamText({
@@ -69,9 +80,10 @@ export class AskAgent extends AIChatAgent<Bindings> {
             instructions: `${system}\n\nThe searches are done. Write the answer now from the tool results above, following every rule; do not call tools.`,
             messages: [...history, ...(await result.responseMessages)],
             providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
+            streamRetries: STREAM_RETRIES,
             abortSignal: options?.abortSignal,
           });
-          writer.merge(toUIMessageStream({ stream: answer.stream, sendStart: false, sendFinish: false }));
+          writer.merge(toUIMessageStream({ stream: answer.stream, sendStart: false, sendFinish: false, onError: describe }));
           await answer.text;
         }
         // Everything the tools returned this turn: the page hides citations and scripture tags outside this set.
