@@ -19,7 +19,7 @@ export type Status = 'verbatim' | 'paraphrase' | 'misquote' | 'weak_or_disputed'
 export type TextStatus = Exclude<Status, 'weak_or_disputed'>;
 
 export const THRESHOLDS = { verbatim: 0.92, verbatimCoverage: 0.9, notFound: 0.55, minCoverage: 0.5 };
-const TOP_CANDIDATES = 16;
+const TOP_CANDIDATES = 24;
 const WEAK = new Set(['daif', 'mawdu', 'disputed']);
 
 type Match = { rows: UnitRow[]; key: string; al: Alignment };
@@ -43,6 +43,10 @@ export type Verdict = {
   family?: Awaited<ReturnType<typeof family>>;
   narrators?: unknown[];
   near?: { key: string; reference: string; similarity: number }[];
+  // Every other source that has this text (verbatim, or nearly): the speaker may have quoted any of them.
+  also?: { key: string; reference: string; similarity: number; same: boolean; grade_status: string | null }[];
+  // When the cited source is the match but another has the exact words.
+  closest?: { key: string; reference: string; similarity: number; grade_status: string | null };
   citation?: { said: string; keys: string[]; agrees: boolean | null };
   reason?: string;
   decided_by: 'citation' | 'alignment' | 'judge';
@@ -51,6 +55,8 @@ export type Verdict = {
 };
 
 const collectionRank = (c: string) => (c === 'quran' ? 0 : CORE.includes(c) ? 1 + CORE.indexOf(c) : 20);
+/** 0 for an ayah or a graded report, 1 for an ungraded copy. */
+const graded = (m: { rows: UnitRow[] }) => (m.rows[0].kind === 'quran' || (m.rows[0].grade_status && m.rows[0].grade_status !== 'ungraded') ? 0 : 1);
 const settle = (p: Promise<Hit[]>) => p.catch(() => [] as Hit[]);
 
 // `quran` is a Quran-only stem list: ayat also appear inside hadith (khutbat al-hajah, tafsir reports) and must
@@ -122,6 +128,9 @@ const diffText = (ops: Op[]) =>
     .join(' ') || '(no differences)';
 
 const MIN_MEANING_CONFIDENCE = 0.6;
+const ALSO_MIN_SIMILARITY = 0.6;
+const ALSO_MIN_WORDS = 6;
+const ALSO_MAX = 12;
 
 /**
  * What a run decided about a text, so a report in another language shows the same findings: the detected spans
@@ -205,7 +214,7 @@ export async function verify(
   ]);
 
   // Align every candidate; keep the best by alignment score, the rest become "near" matches.
-  const best = new Map<number, { match: Match | null; near: Match[] }>();
+  const best = new Map<number, { match: Match | null; near: Match[]; closest?: Match }>();
   quotes.forEach((s, i) => {
     const tried: Match[] = [];
     for (const f of fused[i]) {
@@ -222,7 +231,6 @@ export async function verify(
     // graded source over an ungraded copy (a saying graded fabricated must not show as a plain match), then the
     // core books, then the shortest source (the quote covers more of it).
     const cited = new Set((citedRows.get(s.id) ?? []).map((r) => r.key));
-    const graded = (m: Match) => (m.rows[0].kind === 'quran' || (m.rows[0].grade_status && m.rows[0].grade_status !== 'ungraded') ? 0 : 1);
     const pref = (m: Match) => [cited.has(m.key) ? 0 : 1, graded(m), collectionRank(m.rows[0].collection), m.rows.reduce((n, r) => n + r.ar_norm.length, 0)];
     // Every verbatim match is the same text, so among them the source decides, not a point of score: the ayah
     // before a hadith quoting it, Tirmidhi 2377 before an ungraded copy whose wording differs by one word.
@@ -233,7 +241,15 @@ export async function verify(
       const pa = pref(a), pb = pref(b);
       return pa[0] - pb[0] || pa[1] - pb[1] || pa[2] - pb[2] || pa[3] - pb[3];
     });
-    best.set(s.id, { match: tried[0] ?? null, near: tried.slice(0, 4) });
+    // The speaker named a source that has this report in other wording ("… (HR. Al-Bukhari no. 6464)" for words
+    // that are exact in another collection): that source is the match, so the citation holds, and the exact wording
+    // is named beside it.
+    const named = tried.find((m) => cited.has(m.key) && m.al.similarity >= ALSO_MIN_SIMILARITY && m.al.coverage >= ALSO_MIN_SIMILARITY);
+    if (named && tried[0] && named !== tried[0]) {
+      best.set(s.id, { match: named, near: tried, closest: tried[0] });
+      return;
+    }
+    best.set(s.id, { match: tried[0] ?? null, near: tried });
   });
 
   lap('aligned');
@@ -338,8 +354,20 @@ export async function verify(
       );
       continue;
     }
-    const { match, near } = best.get(s.id)!;
+    const { match, near, closest } = best.get(s.id)!;
     const nearList = near.filter((n) => n !== match).map((n) => ({ key: n.key, reference: reference(n.rows[0], lang), similarity: round(n.al.similarity) }));
+    // Close wordings count only for a quote long enough that sharing most of its words is not chance.
+    const closeEnough = (al: Alignment) =>
+      classify(al) === 'verbatim' || (s.words.length >= ALSO_MIN_WORDS && al.similarity >= ALSO_MIN_SIMILARITY && al.coverage >= ALSO_MIN_SIMILARITY);
+    const also = near
+      .filter((n) => n !== match && n.key !== match?.key && closeEnough(n.al))
+      // Same wording first; then graded sources and the core books, then the closest.
+      .sort((a, b) => Number(classify(b.al) === 'verbatim') - Number(classify(a.al) === 'verbatim') || graded(a) - graded(b) || collectionRank(a.rows[0].collection) - collectionRank(b.rows[0].collection) || b.al.similarity - a.al.similarity)
+      .slice(0, ALSO_MAX)
+      .map((n) => ({
+        key: n.key, reference: reference(n.rows[0], lang), similarity: round(n.al.similarity), same: classify(n.al) === 'verbatim',
+        grade_status: n.rows[0].kind === 'quran' ? 'quran' : n.rows[0].grade_status,
+      }));
     let text: TextStatus;
     let decided: Verdict['decided_by'] = 'alignment';
     let reason: string | undefined;
@@ -380,6 +408,10 @@ export async function verify(
       metrics: { similarity: round(match.al.similarity), coverage: round(match.al.coverage), changed: match.al.changed, extra: match.al.extra, missing: match.al.missing },
       diff: match.al.ops,
       near: nearList.filter((n) => n.key !== match.key).slice(0, 3),
+      ...(also.length ? { also } : {}),
+      ...(closest
+        ? { closest: { key: closest.key, reference: reference(closest.rows[0], lang), similarity: round(closest.al.similarity), grade_status: closest.rows[0].kind === 'quran' ? 'quran' : closest.rows[0].grade_status } }
+        : {}),
       ...(s.citation ? { citation: citationCheck(s, cited, match.rows, d.family ?? []) } : {}),
     });
   }

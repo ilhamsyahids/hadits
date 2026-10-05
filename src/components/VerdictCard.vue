@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { norm } from '../lib/arabic';
 import { computed, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import { prophetic } from '../lib/prophetic';
@@ -25,7 +26,10 @@ export type Verdict = {
   family_grades?: { via: string; grades: Grade[] };
   family?: { key: string; collection_name: string; number: string }[];
   near?: { key: string; reference: string }[];
+  also?: { key: string; reference: string; similarity: number; same: boolean; grade_status: string | null }[];
   citation?: { said: string; agrees: boolean | null };
+  closest?: { key: string; reference: string; similarity: number; grade_status: string | null };
+  metrics?: { similarity: number };
 };
 
 const props = defineProps<{ v: Verdict; t: Strings; lang: 'en' | 'ar'; heading?: string; anchor?: string }>();
@@ -34,7 +38,16 @@ const base = computed(() => (props.lang === 'ar' ? '/ar' : ''));
 const isArabic = (s: string) => /[؀-ۿ]/.test(s);
 const tone = computed(() => ({ verbatim: 'ok', paraphrase: 'ok', reference: 'ok', misquote: 'warn', weak_or_disputed: 'warn' })[props.v.status] ?? 'none');
 // Only for a misquote: on a paraphrase, reordered words show up as noise rather than as the change that matters.
-const changes = computed(() => (props.v.status === 'misquote' ? (props.v.diff ?? []).filter((o) => o.op !== 'same' && o.op !== 'variant') : []).slice(0, 6));
+// Also when the cited source has the report in other wording (closest): the reader sees what differs from it.
+const showDiff = computed(() => props.v.status === 'misquote' || !!props.v.closest);
+const changes = computed(() => (showDiff.value ? (props.v.diff ?? []).filter((o) => o.op !== 'same' && o.op !== 'variant') : []).slice(0, 6));
+// The said words that are not in the source, marked in place.
+const saidPieces = computed(() => {
+  const odd = new Set(changes.value.filter((c) => c.op !== 'missing').flatMap((c) => norm(c.spoken ?? '').split(' ')).filter(Boolean));
+  return props.v.spoken.split(/(\s+)/).map((w) => ({ w, odd: odd.size > 0 && odd.has(norm(w)) }));
+});
+// A grade's tone, as on the chapter lists: sound grades green, weak ones amber, none grey.
+const gradeTone = (g: string | null) => (g === 'quran' || ['sahihayn', 'sahih', 'hasan', 'hasan_sahih', 'hasan_or_sahih', 'accepted'].includes(g ?? '') ? 'ok' : ['daif', 'mawdu', 'disputed'].includes(g ?? '') ? 'warn' : 'none');
 const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
 </script>
 
@@ -52,7 +65,7 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
     <div class="pair">
       <div>
         <h3>{{ v.meaning ? t.meaningOnly : t.said }}</h3>
-        <p :class="isArabic(v.spoken) ? 'scripture' : 'plain'" :dir="isArabic(v.spoken) ? 'rtl' : 'auto'">{{ v.spoken }}</p>
+        <p :class="isArabic(v.spoken) ? 'scripture' : 'plain'" :dir="isArabic(v.spoken) ? 'rtl' : 'auto'"><template v-for="(p, i) in saidPieces" :key="i"><mark v-if="p.odd" class="odd">{{ p.w }}</mark><template v-else>{{ p.w }}</template></template></p>
       </div>
       <div v-if="v.match">
         <h3>{{ t.source }}</h3>
@@ -74,6 +87,9 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
         <template v-else-if="c.op === 'extra'"><del>{{ c.spoken }}</del></template>
         <template v-else><ins>{{ c.source }}</ins></template>
       </span>
+    </p>
+    <p v-if="v.closest" class="reason closest">
+      {{ t.citedWording.split('{closest}')[0].replace('{n}', String(Math.round((v.metrics?.similarity ?? 0) * 100))) }}<a :href="`${base}/${v.closest.key}`">{{ v.closest.reference }}</a>{{ t.citedWording.split('{closest}')[1] }}
     </p>
     <p v-if="v.reason" class="reason"><span class="label">{{ t.why }}:</span> {{ v.reason }}</p>
     <p v-if="v.citation && v.citation.agrees === false" class="citation warn-text">{{ t.citationMismatch }}: «{{ v.citation.said }}»</p>
@@ -99,6 +115,17 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
       <h3>{{ t.variants }}</h3>
       <p><a v-for="f in v.family.slice(0, 8)" :key="f.key" :href="`${base}/${f.key}`">{{ f.collection_name }} {{ f.number }}</a></p>
     </section>
+    <section v-if="v.also?.length" class="links also">
+      <h3>{{ t.alsoIn }}</h3>
+      <p class="note">{{ t.alsoInNote }}</p>
+      <ul>
+        <li v-for="a in v.also" :key="a.key" :class="gradeTone(a.grade_status)">
+          <a :href="`${base}/${a.key}`">{{ a.reference }}</a>
+          <span class="g"><span class="mark" aria-hidden="true"></span>{{ a.grade_status === 'quran' ? '' : t.gradeStatus[a.grade_status ?? 'ungraded'] ?? a.grade_status }}</span>
+          <span v-if="!a.same" class="sim">{{ t.otherWording.replace('{n}', String(Math.round(a.similarity * 100))) }}</span>
+        </li>
+      </ul>
+    </section>
     <section v-if="v.status === 'not_found_in_corpus' && v.near?.length" class="links">
       <h3>{{ t.closest }}</h3>
       <p><a v-for="n in v.near" :key="n.key" :href="`${base}/${n.key}`">{{ n.reference }}</a></p>
@@ -121,6 +148,8 @@ p { margin: 0; overflow-wrap: anywhere; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .translation { color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
 .chain { color: var(--subtle); font-size: 0.85rem; margin-top: 8px; }
+.odd { background: color-mix(in srgb, var(--warn) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+.closest a { text-underline-offset: 3px; }
 .changes { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 .change { font-family: var(--scripture); font-size: 1.15rem; }
 del { color: var(--warn); } ins { text-decoration: none; color: var(--ok); }
@@ -132,6 +161,15 @@ del { color: var(--warn); } ins { text-decoration: none; color: var(--ok); }
 .grades li span { color: var(--muted); }
 .links p { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .links a { text-underline-offset: 3px; }
+.also .note { color: var(--muted); font-size: 0.88rem; margin: 0 0 6px; }
+.also ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 18px; }
+.also li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 4px 0; }
+.also .sim { color: var(--subtle); font-size: 0.85rem; }
+.also .g { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 0.85rem; }
+/* Each source's own grade, not the card's status. */
+.also li .mark { width: 9px; border-radius: 50%; clip-path: none; background: transparent; box-shadow: inset 0 0 0 1.6px var(--none); }
+.also li.ok .mark { background: var(--ok); box-shadow: none; border-radius: 2px; }
+.also li.warn .mark { background: var(--warn); box-shadow: none; border-radius: 0; width: 10px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .link { background: none; border: 0; padding: 6px 0; cursor: pointer; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; min-height: 32px; }
 @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } .card { padding: 16px; } }
 </style>
