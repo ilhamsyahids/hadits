@@ -1,0 +1,16 @@
+---
+import { env } from 'cloudflare:workers';
+import AskChat from '../components/AskChat.vue';
+import AppShell from '../layouts/AppShell.astro';
+import { STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+// ?lecture=<id> scopes the conversation to a sample lecture (search_lecture is added for it).
+const lectureId = Astro.url.searchParams.get('lecture');
+const lecture = lectureId ? await env.CACHE.get<{ title: string }>(`lecture:${lectureId}`, 'json').catch(() => null) : null;
+---
+<AppShell title={`${t.ask.heading} · ${t.brand}`} description={t.ask.intro} locale={locale} path="/ask" active="ask">
+  <AskChat client:only="vue" t={t} lang={locale} lectureId={lecture ? lectureId : null} lectureTitle={lecture?.title ?? null} />
+</AppShell>

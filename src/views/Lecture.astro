@@ -2,7 +2,7 @@
 import { env } from 'cloudflare:workers';
 import LectureReport from '../components/LectureReport.vue';
 import AppShell from '../layouts/AppShell.astro';
-import { STRINGS, type Locale } from '../i18n/strings';
+import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 interface Props { locale: Locale; id: string }
 const { locale, id } = Astro.props;
@@ -20,6 +20,7 @@ if (!lecture) Astro.response.status = 404;
           {t.lectures.langName[lecture.lang] ?? lecture.lang} · {Math.round(lecture.duration / 60)} {t.lectures.minutes}
           {lecture.synthetic_timing && <span> · {t.report.estimated}</span>}
         </p>
+        <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{t.ask.open}</a></p>
         <LectureReport client:load id={id} duration={lecture.duration} t={t} lang={locale} />
       </>
     ) : (
@@ -32,4 +33,6 @@ if (!lecture) Astro.response.status = 404;
   .page { max-width: 920px; margin: 0 auto; padding-top: 24px; }
   h1 { font-size: 1.8rem; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em; }
   .meta { color: var(--muted); margin: 0 0 12px; }
+  .ask-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; text-decoration: none; }
+  .ask-link:hover { background: var(--surface-2); }
 </style>
