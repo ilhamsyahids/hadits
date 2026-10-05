@@ -3,11 +3,19 @@ import { i18n, middleware, pages } from 'astro/hono';
 import { routeAgentRequest } from 'agents';
 import { Hono } from 'hono';
 import { api } from './api';
+import { arabicRedirect } from './lib/geo';
 import type { AppEnv } from './env';
 
 // Worker entry: API routes first, then Astro SSR pages. Durable Objects (Tanya) are exported from here.
 const app = new Hono<AppEnv>();
 app.route('/', api);
+
+// First visit from an Arabic-speaking country → /ar (see src/lib/geo.ts).
+app.get('*', async (c, next) => {
+  const to = arabicRedirect(new URL(c.req.url), (c.req.raw as Request & { cf?: { country?: string } }).cf?.country, c.req.header('cookie'));
+  if (to) return new Response(null, { status: 302, headers: { location: to, 'set-cookie': 'lang=ar; path=/; max-age=31536000; samesite=lax', vary: 'cookie' } });
+  await next();
+});
 // Ask: WebSocket chats with the AskAgent Durable Object (/agents/ask-agent/:chat), limited per IP.
 app.all('/agents/*', async (c) => {
   const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
