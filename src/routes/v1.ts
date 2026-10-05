@@ -33,7 +33,7 @@ v1.get('/search', async (c) => {
   });
 });
 
-const VERIFY_VERSION = 'v6';
+const VERIFY_VERSION = 'v7';
 const MAX_SEGMENTS = 2000;
 
 async function hash(s: string) {
