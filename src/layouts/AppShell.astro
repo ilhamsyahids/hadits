@@ -70,10 +70,13 @@ const href = (p: string) => localePath(locale, p);
 
     <main class="panel">
       <header class="panel-top">
+        <button class="icon-btn only-desktop" type="button" id="toggle-side" aria-controls="side" aria-expanded="true" data-hide={t.nav.hideSidebar} data-show={t.nav.showSidebar} aria-label={t.nav.hideSidebar} title={t.nav.hideSidebar}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M9.5 5v14" stroke="currentColor" stroke-width="1.6" /></svg>
+        </button>
         <button class="icon-btn only-mobile" type="button" id="open-menu" aria-controls="side" aria-expanded="false" aria-label={t.nav.menu}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
         </button>
-        <a class="brand only-mobile" href={href('/')}><svg class="logo" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg><span class:list={["word", { naskh: locale === 'ar' }]}>{t.brand}</span>{locale === 'en' && <span class="naskh ar-word" lang="ar">دليل</span>}</a>
+        <a class="brand only-mobile panel-brand" href={href('/')}><svg class="logo" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg><span class:list={["word", { naskh: locale === 'ar' }]}>{t.brand}</span>{locale === 'en' && <span class="naskh ar-word" lang="ar">دليل</span>}</a>
         <div class="top-actions">
           <a class="text-btn" id="lang-switch" href={other} hreflang={locale === 'en' ? 'ar' : 'en'} lang={locale === 'en' ? 'ar' : 'en'} data-lang={locale === 'en' ? 'ar' : 'en'} aria-label={t.languageLabel}>{t.language}</a>
           <button class="icon-btn" type="button" id="theme" data-dark={t.theme.dark} data-light={t.theme.light} aria-label={t.theme.light}>
@@ -122,6 +125,24 @@ const href = (p: string) => localePath(locale, p);
       return ok;
     }
   };
+  // Desktop: the sidebar folds away for more reading room; the choice is remembered in this browser.
+  const toggleSide = document.getElementById('toggle-side')!;
+  const syncSide = () => {
+    const collapsed = document.documentElement.dataset.sidebar === 'collapsed';
+    toggleSide.setAttribute('aria-expanded', String(!collapsed));
+    const label = (collapsed ? toggleSide.dataset.show : toggleSide.dataset.hide) ?? '';
+    toggleSide.setAttribute('aria-label', label);
+    toggleSide.title = label;
+  };
+  toggleSide.addEventListener('click', () => {
+    const collapsed = document.documentElement.dataset.sidebar !== 'collapsed';
+    if (collapsed) document.documentElement.dataset.sidebar = 'collapsed';
+    else delete document.documentElement.dataset.sidebar;
+    try { localStorage.setItem('sidebar', collapsed ? 'collapsed' : 'open'); } catch { /* not remembered */ }
+    syncSide();
+  });
+  syncSide();
+
   // Share buttons anywhere on the page (ShareButton.astro, and the same markup in Vue islands).
   document.addEventListener('click', async (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-share]');
@@ -248,6 +269,13 @@ const href = (p: string) => localePath(locale, p);
   .icon-btn:hover, .text-btn:hover { background: var(--surface-2); }
   :global([data-theme='dark']) .moon, :global([data-theme='light']) .sun { display: none; }
   .only-mobile { display: none; }
+  /* Collapsed sidebar (desktop): the panel takes the full width and shows the name itself. */
+  @media (min-width: 861px) {
+    :global(html[data-sidebar='collapsed']) .shell { grid-template-columns: 0 1fr; }
+    :global(html[data-sidebar='collapsed']) .side { visibility: hidden; overflow: hidden; padding: 0; }
+    :global(html[data-sidebar='collapsed']) .panel { margin-inline-start: 10px; }
+    :global(html[data-sidebar='collapsed']) .panel-brand { display: inline-flex; }
+  }
   .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); z-index: 20; }
 
   @media (max-width: 860px) {
@@ -259,6 +287,7 @@ const href = (p: string) => localePath(locale, p);
     :global([dir='rtl']) .side { transform: translateX(105%); }
     .side.open { transform: none; visibility: visible; }
     .only-mobile { display: inline-flex; }
+    .only-desktop { display: none; }
     .panel { margin: 0; border-radius: 0; min-height: 100dvh; }
     /* The bar stays at the top while reading on a phone: menu, name, language and theme are always in reach. */
     .panel-top { position: sticky; top: 0; z-index: 15; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 12px; }
