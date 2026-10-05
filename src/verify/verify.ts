@@ -190,8 +190,10 @@ export async function verify(
   const fused = quotes.map((s, i) => {
     const cited = (citedRows.get(s.id) ?? []).map((r, k) => ({ key: r.key, rank: k + 1 }));
     const top = rrf({ cited, ...lexical[i] }).slice(0, TOP_CANDIDATES);
-    // The key the speaker named is always aligned, however low it ranked.
+    // The key the speaker named is always aligned, however low it ranked; so are the best ayat, which hadith that
+    // quote them word for word (tafsir reports, khutbahs) can push out of the top candidates.
     for (const c of cited) if (!top.some((t) => t.key === c.key)) top.push({ key: c.key, score: 0, via: { cited: c.rank } });
+    for (const q of lexical[i].quran.slice(0, 3)) if (!top.some((t) => t.key === q.key)) top.push({ key: q.key, score: 0, via: { quran: 1 } });
     return top;
   });
 
@@ -216,14 +218,20 @@ export async function verify(
         tried.push({ rows: [row], key: row.key, al: align(s.words, row.ar_norm.split(' ').filter(Boolean)) });
       }
     }
-    // Short quotes align equally well with many reports: among near-equal scores prefer the cited key,
-    // then the core books, then the shortest source (the quote covers more of it).
+    // Short quotes align equally well with many reports: among near-equal scores prefer the cited key, then a
+    // graded source over an ungraded copy (a saying graded fabricated must not show as a plain match), then the
+    // core books, then the shortest source (the quote covers more of it).
     const cited = new Set((citedRows.get(s.id) ?? []).map((r) => r.key));
-    const pref = (m: Match) => [cited.has(m.key) ? 0 : 1, collectionRank(m.rows[0].collection), m.rows.reduce((n, r) => n + r.ar_norm.length, 0)];
+    const graded = (m: Match) => (m.rows[0].kind === 'quran' || (m.rows[0].grade_status && m.rows[0].grade_status !== 'ungraded') ? 0 : 1);
+    const pref = (m: Match) => [cited.has(m.key) ? 0 : 1, graded(m), collectionRank(m.rows[0].collection), m.rows.reduce((n, r) => n + r.ar_norm.length, 0)];
+    // Every verbatim match is the same text, so among them the source decides, not a point of score: the ayah
+    // before a hadith quoting it, Tirmidhi 2377 before an ungraded copy whose wording differs by one word.
+    const verbatim = (m: Match) => classify(m.al) === 'verbatim';
     tried.sort((a, b) => {
-      if (Math.abs(b.al.score - a.al.score) > 0.5) return b.al.score - a.al.score;
+      if (verbatim(a) !== verbatim(b)) return verbatim(a) ? -1 : 1;
+      if (!verbatim(a) && Math.abs(b.al.score - a.al.score) > 0.5) return b.al.score - a.al.score;
       const pa = pref(a), pb = pref(b);
-      return pa[0] - pb[0] || pa[1] - pb[1] || pa[2] - pb[2];
+      return pa[0] - pb[0] || pa[1] - pb[1] || pa[2] - pb[2] || pa[3] - pb[3];
     });
     best.set(s.id, { match: tried[0] ?? null, near: tried.slice(0, 4) });
   });

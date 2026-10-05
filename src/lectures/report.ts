@@ -5,7 +5,7 @@ import type { Doc } from './doc';
 
 // Lecture and article reports, cached in KV per text and language; every language shows the same findings. Bump VERIFY_VERSION when verification changes
 // what it returns; then rebuild the sample reports (`bun run warm`, run by `bun run deploy`) so no reader waits.
-export const VERIFY_VERSION = 'v10';
+export const VERIFY_VERSION = 'v11';
 
 export const reportKey = (id: string, lang: Lang) => `report:${VERIFY_VERSION}:${id}:${lang}`;
 // What the first report of a text found and decided; the other languages reuse it (see Decisions in verify.ts).
