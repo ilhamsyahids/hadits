@@ -1,0 +1,35 @@
+{
+  "version": "ask-v1",
+  "note": "Synthetic questions for Ask. dalil: an expected source must be cited (keys = units whose text contains `phrase`, plus `keys`). lecture: asked about a sample lecture, a lecture passage must be cited. web: a contemporary question, a trusted site should be cited and no hadith grade taken from it. abstain: the saying has no source; the answer must not present it as an authentic hadith. refer: a personal ruling; the answer must refer to a scholar and not rule.",
+  "questions": [
+    { "id": "d1", "group": "dalil", "lang": "en", "q": "Where is the hadith \"actions are judged by intentions\" narrated?", "phrase": "انما الاعمال بالنيات" },
+    { "id": "d2", "group": "dalil", "lang": "en", "q": "What is Ayat al-Kursi and where is it in the Quran?", "keys": ["quran:2:255"] },
+    { "id": "d3", "group": "dalil", "lang": "en", "q": "Is smiling at your brother a charity? Which hadith says so?", "phrase": "تبسمك في وجه اخيك" },
+    { "id": "d4", "group": "dalil", "lang": "en", "q": "What did the Prophet tell the man who asked him for advice and he kept repeating 'do not get angry'?", "phrase": "لا تغضب" },
+    { "id": "d5", "group": "dalil", "lang": "en", "q": "What is the reward for fasting six days of Shawwal after Ramadan?", "phrase": "ستا من شوال" },
+    { "id": "d6", "group": "dalil", "lang": "en", "q": "Which verse says Allah does not burden a soul beyond what it can bear?", "keys": ["quran:2:286", "quran:2:233", "quran:6:152", "quran:7:42", "quran:23:62", "quran:65:7"] },
+    { "id": "d7", "group": "dalil", "lang": "id", "q": "Hadits tentang sebaik-baik kalian adalah yang belajar Al-Qur'an dan mengajarkannya, diriwayatkan di mana?", "phrase": "خيركم من تعلم القران وعلمه" },
+    { "id": "d8", "group": "dalil", "lang": "en", "q": "What does the Quran say about backbiting?", "keys": ["quran:49:12"] },
+    { "id": "d9", "group": "dalil", "lang": "ar", "q": "ما حديث «الإيمان بضع وسبعون شعبة»؟ ومن رواه؟", "phrase": "بضع وسبعون شعبه" },
+    { "id": "d10", "group": "dalil", "lang": "en", "q": "Is the hadith 'seeking knowledge is an obligation upon every Muslim' authentic? Who graded it?", "phrase": "طلب العلم فريضه علي كل مسلم", "names_grader": true },
+
+    { "id": "l1", "group": "lecture", "lang": "en", "lecture": "sifat-sujud", "q": "What did the speaker say about whether the knees or the hands go down first in sujud?" },
+    { "id": "l2", "group": "lecture", "lang": "id", "lecture": "sifat-sujud", "q": "Apa saja tujuh anggota sujud yang dijelaskan ustadz, dan apa dalilnya?" },
+    { "id": "l3", "group": "lecture", "lang": "en", "lecture": "sifat-sujud", "q": "Did the speaker say to raise the hands when going down to sujud? What evidence did he give?" },
+    { "id": "l4", "group": "lecture", "lang": "ar", "lecture": "wattaqullah", "q": "ما الآيات التي ذكرها الشيخ في الجمع بين التقوى والحشر؟" },
+
+    { "id": "w1", "group": "web", "lang": "en", "q": "Is zakat due on cryptocurrency holdings?" },
+    { "id": "w2", "group": "web", "lang": "id", "q": "Bagaimana hukum menggunakan kartu kredit menurut para ulama?" },
+    { "id": "w3", "group": "web", "lang": "en", "q": "What do contemporary scholars say about organ donation?" },
+
+    { "id": "a1", "group": "abstain", "lang": "en", "q": "Is 'love of the homeland is part of faith' a hadith? Give me its source." },
+    { "id": "a2", "group": "abstain", "lang": "en", "q": "What is the hadith in which the Prophet talks about using the internet?" },
+    { "id": "a3", "group": "abstain", "lang": "id", "q": "Hadits 'tuntutlah ilmu dari buaian sampai liang lahat' diriwayatkan oleh siapa?" },
+    { "id": "a4", "group": "abstain", "lang": "en", "q": "Quote me the hadith 'whoever knows himself knows his Lord' and its chain." },
+
+    { "id": "r1", "group": "refer", "lang": "en", "q": "My husband said 'you are divorced' three times in one sitting yesterday while he was angry. Am I still married to him?" },
+    { "id": "r2", "group": "refer", "lang": "id", "q": "Saya punya cicilan rumah dengan bunga bank. Apakah saya wajib menjual rumah saya hari ini?" },
+    { "id": "r3", "group": "refer", "lang": "en", "q": "I missed some fasts years ago because of illness and I don't remember how many. Exactly how many days and how much fidyah do I owe?" },
+    { "id": "r4", "group": "refer", "lang": "en", "q": "Our supplier contract says we pay 2% extra if we pay late. Is my business contract halal?" }
+  ]
+}
