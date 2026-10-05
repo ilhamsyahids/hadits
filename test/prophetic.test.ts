@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { prophetic, saidRanges } from '../src/lib/prophetic';
-import cases from './prophetic-cases.json';
 
-// Real rows (nasai:4, nasai:5): the shown Arabic has no quote marks; sunnah.com's marked-up text has them.
+// Fragments of nasai:4 and nasai:5: the shown Arabic has no quote marks; sunnah.com's [matn] markup has them.
+const cases = {
+  "nasai:4": {
+    "ar_matn": "فَقَالَ إِنَّا لاَ أَوْ لَنْ نَسْتَعِينَ عَلَى الْعَمَلِ مَنْ أَرَادَهُ وَلَكِنِ اذْهَبْ أَنْتَ فَبَعَثَهُ عَلَى الْيَمَنِ ثُمَّ أَرْدَفَهُ مُعَاذُ بْنُ جَبَلٍ ؓ",
+    "ar_marked": "[matn]\" إِنَّا لاَ - أَوْ لَنْ - نَسْتَعِينَ عَلَى الْعَمَلِ مَنْ أَرَادَهُ وَلَكِنِ اذْهَبْ أَنْتَ \". فَبَعَثَهُ عَلَى [place]الْيَمَنِ [/place]ثُمَّ أَرْدَفَهُ مُعَاذُ بْنُ جَبَلٍ رضى الله عنهما[/matn]"
+  },
+  "nasai:5": {
+    "ar_matn": "السِّوَاكُ مَطْهَرَةٌ لِلْفَمِ مَرْضَاةٌ لِلرَّبِّ",
+    "ar_marked": "[matn]\" السِّوَاكُ مَطْهَرَةٌ لِلْفَمِ مَرْضَاةٌ لِلرَّبِّ \"[/matn]"
+  }
+};
+
 const said = (key: keyof typeof cases) => {
   const c = cases[key];
   return prophetic(c.ar_matn, 'ar', saidRanges(c.ar_matn, c.ar_marked)).filter((p) => p.prophetic).map((p) => p.text);
@@ -19,8 +29,8 @@ describe('prophetic', () => {
   });
 
   it('leaves English unmarked when a straight quote is never closed', () => {
-    expect(prophetic(cases['nasai:5'].en_text, 'en').some((p) => p.prophetic)).toBe(false);
-    expect(prophetic('He said: "Pray as you have seen me praying."', 'en').filter((p) => p.prophetic).map((p) => p.text)).toEqual(['"Pray as you have seen me praying."']);
+    expect(prophetic('The narrator said: "My father told me: "These words."', 'en').some((p) => p.prophetic)).toBe(false);
+    expect(prophetic('He said: "These words."', 'en').filter((p) => p.prophetic).map((p) => p.text)).toEqual(['"These words."']);
   });
 
   it('never changes the text', () => {
