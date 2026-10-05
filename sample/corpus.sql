@@ -14,7 +14,7 @@ CREATE TABLE units (
   id INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, kind TEXT NOT NULL, collection TEXT NOT NULL,
   number TEXT, number_base INTEGER, ord INTEGER,
   chapter_en TEXT, chapter_ar TEXT, section_en TEXT, section_ar TEXT, title_en TEXT,
-  ar_isnad TEXT, ar_matn TEXT, ar_prophetic TEXT, ar_marked TEXT, en_text TEXT, id_text TEXT,
+  ar_isnad TEXT, ar_matn TEXT, ar_prophetic TEXT, ar_marked TEXT, en_isnad TEXT, en_text TEXT, id_text TEXT,
   ar_norm TEXT, ar_stem TEXT,
   grade_status TEXT, grades_json TEXT, notes_json TEXT, narrators_json TEXT,
   family_id TEXT, parallel_of TEXT, same_as_previous_of TEXT, anthologies_json TEXT, source_matches_json TEXT,
