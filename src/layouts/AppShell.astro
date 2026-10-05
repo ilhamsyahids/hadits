@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import Base from './Base.astro';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
-// Sidebar + inset panel (layout from the qaf reference). Every nav item points at a page that exists.
+// Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
 interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'lectures' | null }
 const { title, description, locale, path, active = null } = Astro.props;
 const t = STRINGS[locale];

@@ -15,7 +15,7 @@ const ar = `https://hadits.net/ar${path}`;
     <link rel="alternate" hreflang="en" href={en} />
     <link rel="alternate" hreflang="ar" href={ar} />
     <title>{title}</title>
-    <!-- Theme before paint: the reader's saved choice, otherwise dark (the reference design). -->
+    <!-- Theme before paint: the reader's saved choice, otherwise dark (DESIGN.md). -->
     <script is:inline>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
     </script>
@@ -26,7 +26,7 @@ const ar = `https://hadits.net/ar${path}`;
       href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     />
     <style is:global>
-      /* Neutral chrome (from the qaf reference); status colours are the only colours, and they mean something. */
+      /* Neutral chrome (see DESIGN.md); status colours are the only colours, and they mean something. */
       :root, :root[data-theme='dark'] {
         --frame: #181818; --panel: #0e0e0e; --surface: #1c1c1c; --surface-2: #242424; --line: #2c2c2c;
         --text: #f1f0ec; --muted: #a3a09a; --subtle: #8a877f; --invert-bg: #f1f0ec; --invert-text: #121212;

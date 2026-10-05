@@ -1,4 +1,4 @@
-"""Patch the D1 rows whose match keys changed after a normaliser fix in tools/arabic.py (5 Oct 2026).
+"""Patch the D1 rows whose match keys changed after a normaliser fix in tools/arabic.py.
 
     python3 tools/reindex_quran.py vocative   # or ya_dagger; then: tools/import_d1.sh "70_reindex_*"
 

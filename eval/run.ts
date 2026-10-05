@@ -311,7 +311,7 @@ const metrics: [string, keyof ReturnType<typeof summarise>][] = [
   ['Avg ms per lecture', 'avg_ms_per_lecture'],
 ];
 const names: Record<string, string> = { dalil: 'Dalil (hybrid)', 'dalil-rules': 'Dalil (rules only)', 'dalil-llm': 'Dalil (LLM extraction only)', plain: 'Plain LLM', majelisnote: 'MajelisNote (baseline prompt)' };
-let md = `# Evaluation\n\nRun ${started} · golden set ${golden.version} (${lectures.length} synthetic lectures, ${lectures.reduce((n, l) => n + l.items.length, 0)} planted items) · ${RUNS} run(s) per arm · model ${MODEL}\n\n`;
+let md = `# Evaluation\n\nGolden set ${golden.version} (${lectures.length} synthetic lectures, ${lectures.reduce((n, l) => n + l.items.length, 0)} planted items) · ${RUNS} run(s) per arm · model ${MODEL}\n\n`;
 md += `| Metric | ${ARMS.map((a) => names[a] ?? a).join(' | ')} |\n|---|${ARMS.map(() => '---').join('|')}|\n`;
 for (const [label, key] of metrics) md += `| ${label} | ${table(key).join(' | ')} |\n`;
 md += `\nRanges show min–max across runs.\n\n## Status accuracy by expected status (%)\n\n| Expected | ${ARMS.map((a) => names[a] ?? a).join(' | ')} |\n|---|${ARMS.map(() => '---').join('|')}|\n`;
