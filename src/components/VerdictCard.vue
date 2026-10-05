@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
+import { prophetic } from '../lib/prophetic';
 
 // One checked quote: what was said, the source it matched (text from the API, never typed here), the verdict,
 // grades by grader, and the other wordings. Status colour marks meaning, not decoration.
 
-export type Grade = { grader: string; grade: string; conflict: boolean };
+export type Grade = { grader: string; grade: string; conflict: boolean; via?: string | null; others?: { grade: string; sources: string[]; via?: string | null }[] };
 export type Op = { op: 'same' | 'variant' | 'changed' | 'extra' | 'missing'; spoken?: string; source?: string };
 export type Verdict = {
   id: number;
@@ -52,11 +53,13 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
       </div>
       <div v-if="v.match">
         <h3>{{ t.source }}</h3>
-        <p class="scripture" lang="ar" :class="{ clamp: long && !full }">{{ v.match.ar.matn }}</p>
+        <p class="scripture" lang="ar" :class="{ clamp: long && !full, quran: v.match.kind === 'quran' }">
+          <template v-for="(p, i) in prophetic(v.match.ar.matn, 'ar')" :key="i"><span v-if="p.prophetic" class="prophetic">{{ p.text }}</span><template v-else>{{ p.text }}</template></template>
+        </p>
         <button v-if="long" type="button" class="link" @click="full = !full">{{ full ? '−' : '+' }} {{ v.match.reference }}</button>
         <template v-if="v.match.en && lang === 'en'">
           <p v-if="v.match.en_isnad" class="chain">{{ v.match.en_isnad.split(/\s*>\s*/).join(' › ') }}</p>
-          <p class="translation">{{ v.match.en }}</p>
+          <p class="translation"><template v-for="(p, i) in prophetic(v.match.en, 'en')" :key="i"><span v-if="p.prophetic" class="prophetic">{{ p.text }}</span><template v-else>{{ p.text }}</template></template></p>
         </template>
       </div>
     </div>
@@ -77,7 +80,10 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
     <section v-if="v.match && v.match.kind === 'hadith'" class="grades">
       <h3>{{ t.gradedBy }}</h3>
       <ul v-if="v.grades?.length">
-        <li v-for="g in v.grades" :key="g.grader + g.grade"><span>{{ g.grader }}</span> <strong>{{ g.grade }}</strong><span v-if="g.conflict" class="warn-text"> ⚠</span></li>
+        <li v-for="g in v.grades" :key="g.grader + g.grade">
+          <span>{{ g.grader }}</span> <strong>{{ g.grade }}</strong>
+          <small v-for="o in g.others ?? []" :key="o.grade" class="warn-text"> · {{ o.via && o.via !== g.via ? t.sourcePage.otherGradeVia.replace('{via}', o.via).replace('{grade}', o.grade) : t.sourcePage.otherGrade.replace('{grade}', o.grade).replace('{sources}', o.sources.join(', ')) }}</small>
+        </li>
       </ul>
       <template v-else-if="v.family_grades">
         <p class="muted">{{ t.noGrade }} {{ t.familyGrades }} <a :href="`${base}/${v.family_grades.via}`">{{ v.family_grades.via }}</a>:</p>
