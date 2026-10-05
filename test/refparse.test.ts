@@ -42,6 +42,13 @@ describe('parseCitations', () => {
     expect(one('[البقؤة:197]')).toEqual([{ kind: 'quran', surah: 2, from: 197, to: 197 }]);
     expect(one('سورة البقرة آية 255')).toEqual([{ kind: 'quran', surah: 2, from: 255, to: 255 }]);
   });
+  it('surah names that differ only by the article', () => {
+    expect(one('Surah At-Talaq ayat 2')).toEqual([{ kind: 'quran', surah: 65, from: 2, to: 2 }]);
+    expect(one("Surah Al-'Alaq ayat 1")).toEqual([{ kind: 'quran', surah: 96, from: 1, to: 1 }]);
+    expect(one('Sura at-Talaq Q.65:2-3 says')).toEqual([{ kind: 'quran', surah: 65, from: 2, to: 3 }]);
+    expect(one('Surat An-Nashr ayat 1')).toEqual([{ kind: 'quran', surah: 110, from: 1, to: 1 }]);
+    expect(one("Surat Al-'Ashr ayat 2")).toEqual([{ kind: 'quran', surah: 103, from: 2, to: 2 }]);
+  });
   it('Wikipedia-style [Quran s:a] citations', () => {
     expect(one('bow down (in worship).[Quran 2:43]')).toEqual([{ kind: 'quran', surah: 2, from: 43, to: 43 }]);
     expect(one('[Quran 41:7]')).toEqual([{ kind: 'quran', surah: 41, from: 7, to: 7 }]);
