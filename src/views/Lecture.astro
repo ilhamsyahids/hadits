@@ -1,5 +1,6 @@
 ---
 import { env } from 'cloudflare:workers';
+import DocOwner from '../components/DocOwner.vue';
 import LectureReport from '../components/LectureReport.vue';
 import AppShell from '../layouts/AppShell.astro';
 import { timingOf, type Doc } from '../lectures/doc';
@@ -24,6 +25,9 @@ const src = lecture?.source;
           {t.lectures.kindName[lecture.kind ?? 'lecture']} · {t.lectures.langName[lecture.lang] ?? lecture.lang} ·{' '}
           {timing === 'audio' ? `${Math.round(lecture.duration / 60)} ${t.lectures.minutes}` : `${segments.length} ${t.lectures.paragraphs}`}
         </p>
+        {lecture.submitted && (
+          <p class="meta source"><DocOwner client:load id={id} expires={lecture.submitted.expires} t={t} lang={locale} /></p>
+        )}
         {src && (
           <p class="meta source">
             {t.lectures.source}:{' '}
@@ -32,7 +36,7 @@ const src = lecture?.source;
             {src.note && <> · <span dir="auto">{src.note}</span></>}
           </p>
         )}
-        <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : t.ask.open}</a></p>
+        <p><a class="ask-link" href={localePath(locale, `/ask?lecture=${id}`)}>{lecture.kind === 'article' ? t.ask.openArticle : lecture.kind === 'text' ? t.ask.openText : t.ask.open}</a></p>
         <LectureReport client:load id={id} duration={lecture.duration} timing={timing} segments={segments} textLang={lecture.lang} t={t} lang={locale} />
       </>
     ) : (
