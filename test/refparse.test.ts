@@ -42,6 +42,12 @@ describe('parseCitations', () => {
     expect(one('[البقؤة:197]')).toEqual([{ kind: 'quran', surah: 2, from: 197, to: 197 }]);
     expect(one('سورة البقرة آية 255')).toEqual([{ kind: 'quran', surah: 2, from: 255, to: 255 }]);
   });
+  it('Wikipedia-style [Quran s:a] citations', () => {
+    expect(one('bow down (in worship).[Quran 2:43]')).toEqual([{ kind: 'quran', surah: 2, from: 43, to: 43 }]);
+    expect(one('[Quran 41:7]')).toEqual([{ kind: 'quran', surah: 41, from: 7, to: 7 }]);
+    expect(one("Qur'an 9:79")).toEqual([{ kind: 'quran', surah: 9, from: 79, to: 79 }]);
+    expect(one('the Quran 41 times')).toEqual([]);
+  });
   it('ignores timestamps and plain numbers', () => {
     expect(one('pada menit 12:30 beliau berkata ada 3 hal')).toEqual([]);
     expect(one('tahun 2024 ada 100 orang')).toEqual([]);
