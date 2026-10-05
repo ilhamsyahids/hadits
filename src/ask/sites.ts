@@ -18,6 +18,10 @@ export const SITES: Site[] = [
   s('ajurry.com', 'Al-Ajurry', 'ar', 'articles', 'Articles and recorded lessons of contemporary scholars.', 'مقالات ودروس مسجلة لعلماء معاصرين.'),
   s('ahlelhdeeth.com', 'Ahl al-Hadith Forum', 'ar', 'articles', 'Forum for discussion of the hadith sciences.', 'ملتقى لمدارسة علوم الحديث.'),
   s('islamcontent.com', 'IslamContent', 'ar', 'articles', 'Articles and research on Islamic topics.', 'مقالات وبحوث في الموضوعات الشرعية.'),
+  // Not searched yet, pending review of their content:
+  // s('midad.com', 'Midad', 'ar', 'articles', 'Arabic articles on Islamic topics.', 'مقالات عربية في الموضوعات الشرعية.'),
+  // s('alfiqh.net', 'Al-Fiqh', 'ar', 'articles', 'Articles on fiqh.', 'مقالات في الفقه.'),
+  // s('kulalsalafiyeen.com', 'Kull al-Salafiyyin', 'ar', 'articles', 'Compiled articles and translated fatawa of scholars.', 'مقالات وفتاوى مترجمة للعلماء.'),
   s('binbaz.org.sa', 'Sheikh Ibn Baz', 'ar', 'scholar', 'Official site of Sheikh Abdul Aziz Ibn Baz: fatawa, books and lessons.', 'الموقع الرسمي للشيخ عبد العزيز بن باز: فتاوى وكتب ودروس.'),
   s('binothaimeen.com', 'Sheikh Ibn Uthaymeen', 'ar', 'scholar', "Official site of Sheikh Muhammad ibn Salih al-Uthaymeen: complete works, fatawa and lessons.", 'الموقع الرسمي للشيخ محمد بن صالح العثيمين: المؤلفات والفتاوى والدروس.'),
   s('al-badr.net', 'Sheikh Abdurrazzaq al-Badr', 'ar', 'scholar', 'Official site of Sheikh Abdurrazzaq al-Badr: books, articles and transcribed lessons.', 'الموقع الرسمي للشيخ عبد الرزاق البدر: كتب ومقالات ودروس مفرغة.'),
