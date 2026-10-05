@@ -17,6 +17,9 @@ const href = (p: string) => localePath(locale, p);
     <aside class="side" id="side" aria-label={t.nav.menu}>
       <div class="side-head">
         <a class="brand" href={href('/')}><svg class="logo" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg><span class:list={["word", { naskh: locale === 'ar' }]}>{t.brand}</span>{locale === 'en' && <span class="naskh ar-word" lang="ar">دليل</span>}</a>
+        <button class="icon-btn only-desktop" type="button" data-side-toggle aria-controls="side" aria-expanded="true" aria-label={t.nav.hideSidebar} title={t.nav.hideSidebar}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M9.5 5v14" stroke="currentColor" stroke-width="1.6" /></svg>
+        </button>
         <button class="icon-btn only-mobile" type="button" data-close-menu aria-label={t.nav.close}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
         </button>
@@ -70,7 +73,7 @@ const href = (p: string) => localePath(locale, p);
 
     <main class="panel">
       <header class="panel-top">
-        <button class="icon-btn only-desktop" type="button" id="toggle-side" aria-controls="side" aria-expanded="true" data-hide={t.nav.hideSidebar} data-show={t.nav.showSidebar} aria-label={t.nav.hideSidebar} title={t.nav.hideSidebar}>
+        <button class="icon-btn only-desktop show-side" type="button" data-side-toggle aria-controls="side" aria-expanded="false" aria-label={t.nav.showSidebar} title={t.nav.showSidebar}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M9.5 5v14" stroke="currentColor" stroke-width="1.6" /></svg>
         </button>
         <button class="icon-btn only-mobile" type="button" id="open-menu" aria-controls="side" aria-expanded="false" aria-label={t.nav.menu}>
@@ -125,22 +128,23 @@ const href = (p: string) => localePath(locale, p);
       return ok;
     }
   };
-  // Desktop: the sidebar folds away for more reading room; the choice is remembered in this browser.
-  const toggleSide = document.getElementById('toggle-side')!;
+  // Desktop: the sidebar folds away for more reading room (its button sits beside the name; when folded, one in the
+  // top bar brings it back). The choice is remembered in this browser.
+  const sideButtons = document.querySelectorAll<HTMLButtonElement>('[data-side-toggle]');
   const syncSide = () => {
     const collapsed = document.documentElement.dataset.sidebar === 'collapsed';
-    toggleSide.setAttribute('aria-expanded', String(!collapsed));
-    const label = (collapsed ? toggleSide.dataset.show : toggleSide.dataset.hide) ?? '';
-    toggleSide.setAttribute('aria-label', label);
-    toggleSide.title = label;
+    sideButtons.forEach((b) => b.setAttribute('aria-expanded', String(!collapsed)));
   };
-  toggleSide.addEventListener('click', () => {
-    const collapsed = document.documentElement.dataset.sidebar !== 'collapsed';
-    if (collapsed) document.documentElement.dataset.sidebar = 'collapsed';
-    else delete document.documentElement.dataset.sidebar;
-    try { localStorage.setItem('sidebar', collapsed ? 'collapsed' : 'open'); } catch { /* not remembered */ }
-    syncSide();
-  });
+  sideButtons.forEach((b) =>
+    b.addEventListener('click', () => {
+      const collapsed = document.documentElement.dataset.sidebar !== 'collapsed';
+      if (collapsed) document.documentElement.dataset.sidebar = 'collapsed';
+      else delete document.documentElement.dataset.sidebar;
+      try { localStorage.setItem('sidebar', collapsed ? 'collapsed' : 'open'); } catch { /* not remembered */ }
+      syncSide();
+      document.querySelector<HTMLButtonElement>(collapsed ? '.show-side' : '.side-head [data-side-toggle]')?.focus();
+    }),
+  );
   syncSide();
 
   // Share buttons anywhere on the page (ShareButton.astro, and the same markup in Vue islands).
@@ -269,12 +273,14 @@ const href = (p: string) => localePath(locale, p);
   .icon-btn:hover, .text-btn:hover { background: var(--surface-2); }
   :global([data-theme='dark']) .moon, :global([data-theme='light']) .sun { display: none; }
   .only-mobile { display: none; }
+  .show-side { display: none; }
   /* Collapsed sidebar (desktop): the panel takes the full width and shows the name itself. */
   @media (min-width: 861px) {
     :global(html[data-sidebar='collapsed']) .shell { grid-template-columns: 0 1fr; }
     :global(html[data-sidebar='collapsed']) .side { visibility: hidden; overflow: hidden; padding: 0; }
     :global(html[data-sidebar='collapsed']) .panel { margin-inline-start: 10px; }
     :global(html[data-sidebar='collapsed']) .panel-brand { display: inline-flex; }
+    :global(html[data-sidebar='collapsed']) .show-side { display: inline-flex; }
   }
   .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); z-index: 20; }
 
