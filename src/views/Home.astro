@@ -1,0 +1,12 @@
+---
+import CheckQuote from '../components/CheckQuote.vue';
+import AppShell from '../layouts/AppShell.astro';
+import { STRINGS, type Locale } from '../i18n/strings';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = STRINGS[locale];
+---
+<AppShell title={t.title} description={t.intro} locale={locale} path="/" active="check">
+  <CheckQuote client:load t={t} lang={locale} />
+</AppShell>

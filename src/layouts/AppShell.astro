@@ -1,0 +1,136 @@
+---
+import { env } from 'cloudflare:workers';
+import Base from './Base.astro';
+import { localePath, STRINGS, type Locale } from '../i18n/strings';
+
+// Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
+interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'lectures' | null }
+const { title, description, locale, path, active = null } = Astro.props;
+const t = STRINGS[locale];
+type Item = { id: string; title: string; lang: string; duration: number };
+const lectures = (await env.CACHE.get<Item[]>('lectures:index', 'json').catch(() => null)) ?? [];
+const other = locale === 'en' ? `/ar${path === '/' ? '/' : path}` : path;
+const href = (p: string) => localePath(locale, p);
+---
+<Base title={title} description={description} locale={locale} path={path}>
+  <div class="shell">
+    <aside class="side" id="side" aria-label={t.nav.menu}>
+      <div class="side-head">
+        <a class="brand" href={href('/')}>{t.brand}</a>
+        <button class="icon-btn only-mobile" type="button" data-close-menu aria-label={t.nav.close}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
+        </button>
+      </div>
+      <nav class="primary">
+        <a href={href('/')} aria-current={active === 'check' ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+          {t.nav.check}
+        </a>
+        <a href={href('/lectures')} aria-current={active === 'lectures' ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5h14M5 10h14M5 15h9M5 20h6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" /></svg>
+          {t.nav.lectures}
+        </a>
+      </nav>
+      {lectures.length > 0 && (
+        <section class="recent">
+          <h2>{t.nav.recent}</h2>
+          <ul>
+            {lectures.map((l) => (
+              <li><a href={href(`/lectures/${l.id}`)} aria-current={path === `/lectures/${l.id}` ? 'page' : undefined} dir="auto">{l.title}</a></li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </aside>
+    <div class="scrim" data-close-menu hidden></div>
+
+    <main class="panel">
+      <header class="panel-top">
+        <button class="icon-btn only-mobile" type="button" id="open-menu" aria-controls="side" aria-expanded="false" aria-label={t.nav.menu}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" /></svg>
+        </button>
+        <a class="brand only-mobile" href={href('/')}>{t.brand}</a>
+        <div class="top-actions">
+          <a class="text-btn" href={other} hreflang={locale === 'en' ? 'ar' : 'en'} lang={locale === 'en' ? 'ar' : 'en'} aria-label={t.languageLabel}>{t.language}</a>
+          <button class="icon-btn" type="button" id="theme" data-dark={t.theme.dark} data-light={t.theme.light} aria-label={t.theme.light}>
+            <svg class="sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+            <svg class="moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" /></svg>
+          </button>
+        </div>
+      </header>
+      <div class="panel-body">
+        <slot />
+      </div>
+    </main>
+  </div>
+</Base>
+
+<script>
+  // Theme toggle (saved per reader) and the mobile drawer (Escape and the scrim close it).
+  const root = document.documentElement;
+  const theme = document.getElementById('theme')!;
+  const label = () => theme.setAttribute('aria-label', root.dataset.theme === 'dark' ? theme.dataset.light! : theme.dataset.dark!);
+  label();
+  theme.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('theme', root.dataset.theme); } catch {}
+    label();
+  });
+
+  const side = document.getElementById('side')!;
+  const open = document.getElementById('open-menu')!;
+  const scrim = document.querySelector<HTMLElement>('.scrim')!;
+  const setMenu = (on: boolean) => {
+    side.classList.toggle('open', on);
+    scrim.hidden = !on;
+    open.setAttribute('aria-expanded', String(on));
+    if (on) side.querySelector<HTMLElement>('a, button')?.focus();
+    else open.focus();
+  };
+  open.addEventListener('click', () => setMenu(true));
+  document.querySelectorAll('[data-close-menu]').forEach((el) => el.addEventListener('click', () => setMenu(false)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && side.classList.contains('open')) setMenu(false); });
+</script>
+
+<style>
+  .shell { display: grid; grid-template-columns: 272px 1fr; min-height: 100dvh; }
+  .side { padding: 20px 14px; display: flex; flex-direction: column; gap: 22px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
+  .side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+  .brand { font-size: 1.45rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+  .primary { display: flex; flex-direction: column; gap: 2px; }
+  .primary a, .recent a {
+    display: flex; align-items: center; gap: 12px; padding: 10px 10px; border-radius: var(--r-small);
+    text-decoration: none; color: var(--text); min-height: 44px;
+  }
+  .primary a:hover, .recent a:hover { background: var(--surface-2); }
+  .primary a[aria-current='page'], .recent a[aria-current='page'] { background: var(--surface-2); font-weight: 500; }
+  .recent h2 { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin: 0 10px 6px; }
+  .recent ul { list-style: none; margin: 0; padding: 0; }
+  .recent a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 24px; }
+
+  .panel { background: var(--panel); margin: 10px; margin-inline-start: 0; border-radius: var(--r-panel); min-height: calc(100dvh - 20px); display: flex; flex-direction: column; min-width: 0; }
+  .panel-top { display: flex; align-items: center; gap: 10px; padding: 14px 18px; }
+  .top-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 6px; }
+  .panel-body { flex: 1; padding: 0 clamp(16px, 4vw, 48px) 48px; min-width: 0; }
+  .icon-btn, .text-btn {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+    border: 0; background: transparent; border-radius: var(--r-small); cursor: pointer; text-decoration: none; padding: 0 10px; color: var(--text);
+  }
+  .icon-btn:hover, .text-btn:hover { background: var(--surface-2); }
+  :global([data-theme='dark']) .moon, :global([data-theme='light']) .sun { display: none; }
+  .only-mobile { display: none; }
+  .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); z-index: 20; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .side {
+      position: fixed; inset-block: 0; inset-inline-start: 0; width: min(300px, 86vw); background: var(--frame); z-index: 30;
+      transform: translateX(-105%); transition: transform 0.2s ease, visibility 0.2s; height: 100dvh; visibility: hidden;
+    }
+    :global([dir='rtl']) .side { transform: translateX(105%); }
+    .side.open { transform: none; visibility: visible; }
+    .only-mobile { display: inline-flex; }
+    .panel { margin: 0; border-radius: 0; min-height: 100dvh; }
+  }
+  @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+</style>

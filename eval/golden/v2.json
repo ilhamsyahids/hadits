@@ -1,6 +1,6 @@
 {
   "version": "v2",
-  "note": "Held-out set, written 5 Oct 2026 before any verifier run on it. Same rendering rules as v1: `phrase` locates the excerpt and the Arabic comes from the database; `swap`/`drop` make misquotes; `pick` reorders source words for a paraphrase. New kinds of item: `meaning` (the speaker gives only the meaning in Indonesian, no Arabic; status paraphrase, keys = units containing `phrase`), `translit` (Latin transliteration of a source text). Not-found sayings passed a corpus check: in-order word containment ≤ 0.5 and no shared run longer than 2 words. Arabic lectures are written in Arabic throughout, as a Saudi lecturer would speak.",
+  "note": "Held-out set, committed before any verifier run on it. Same rendering rules as v1: `phrase` locates the excerpt and the Arabic comes from the database; `swap`/`drop` make misquotes; `pick` reorders source words for a paraphrase. New kinds of item: `meaning` (the speaker gives only the meaning in Indonesian, no Arabic; status paraphrase, keys = units containing `phrase`), `translit` (Latin transliteration of a source text). Not-found sayings passed a corpus check: in-order word containment ≤ 0.5 and no shared run longer than 2 words. Arabic lectures are written in Arabic throughout, as an Arabic-speaking lecturer would speak.",
   "lectures": [
     {
       "id": "puasa",

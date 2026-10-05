@@ -178,8 +178,11 @@ const ARM_FNS: Record<string, (l: Lecture) => Promise<ArmOut>> = {
 
 // ---------------------------------------------------------------- scoring
 const stemSet = (s: string) => new Set(stems(s).split(' ').filter((t) => t.length >= 2));
+// Arabic quotes pair by stem overlap; meaning-only and transliterated items (no Arabic) pair by Latin words.
+const latinSet = (s: string) => new Set(s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((t) => t.length >= 3));
 function overlap(a: string, b: string): number {
-  const A = stemSet(a), B = stemSet(b);
+  const arabic = /[\u0600-\u06ff]/.test(a);
+  const A = arabic ? stemSet(a) : latinSet(a), B = arabic ? stemSet(b) : latinSet(b);
   if (!A.size || !B.size) return 0;
   let n = 0;
   for (const t of A) if (B.has(t)) n++;
@@ -253,6 +256,13 @@ function summarise(rows: Row[], extra: number, outs: ArmOut[]) {
 
 // ---------------------------------------------------------------- main
 const started = new Date().toISOString();
+
+// --rescore <results.json>: score the saved predictions of an earlier run again (no arm is called).
+if (args.rescore) {
+  const prev = JSON.parse(readFileSync(args.rescore, 'utf8')) as { arms: Record<string, { preds: Record<string, Pred[]>[] }> };
+  for (const arm of Object.keys(prev.arms)) ARM_FNS[arm] = async () => { throw new Error('rescore only'); };
+  (globalThis as { RESCORE?: typeof prev }).RESCORE = prev;
+}
 const results: Record<string, { runs: ReturnType<typeof summarise>[]; rows: Row[]; preds: Record<string, Pred[]>[] }> = {};
 for (const arm of ARMS) {
   results[arm] = { runs: [], rows: [], preds: [] };
@@ -262,7 +272,8 @@ for (const arm of ARMS) {
     const preds: Record<string, Pred[]> = {};
     let extra = 0;
     for (const l of lectures) {
-      const out = await ARM_FNS[arm](l);
+      const saved = (globalThis as { RESCORE?: { arms: Record<string, { preds: Record<string, Pred[]>[] }> } }).RESCORE?.arms[arm]?.preds[run]?.[l.id];
+      const out = saved ? { preds: saved, ms: 0, tokens: { input: 0, output: 0 } } : await ARM_FNS[arm](l);
       const s = score(l, out);
       rows.push(...s.rows);
       outs.push(out);
@@ -300,7 +311,7 @@ const metrics: [string, keyof ReturnType<typeof summarise>][] = [
   ['Avg ms per lecture', 'avg_ms_per_lecture'],
 ];
 const names: Record<string, string> = { dalil: 'Dalil (hybrid)', 'dalil-rules': 'Dalil (rules only)', 'dalil-llm': 'Dalil (LLM extraction only)', plain: 'Plain LLM', majelisnote: 'MajelisNote (baseline prompt)' };
-let md = `# Evaluation\n\nRun ${started} · golden set ${golden.version} (${lectures.length} synthetic lectures, ${lectures.reduce((n, l) => n + l.items.length, 0)} planted items) · ${RUNS} run(s) per arm · model ${MODEL}\n\n`;
+let md = `# Evaluation\n\nGolden set ${golden.version} (${lectures.length} synthetic lectures, ${lectures.reduce((n, l) => n + l.items.length, 0)} planted items) · ${RUNS} run(s) per arm · model ${MODEL}\n\n`;
 md += `| Metric | ${ARMS.map((a) => names[a] ?? a).join(' | ')} |\n|---|${ARMS.map(() => '---').join('|')}|\n`;
 for (const [label, key] of metrics) md += `| ${label} | ${table(key).join(' | ')} |\n`;
 md += `\nRanges show min–max across runs.\n\n## Status accuracy by expected status (%)\n\n| Expected | ${ARMS.map((a) => names[a] ?? a).join(' | ')} |\n|---|${ARMS.map(() => '---').join('|')}|\n`;

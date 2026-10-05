@@ -1,32 +1,58 @@
 ---
 import { dir, type Locale } from '../i18n/strings';
 
-interface Props { title: string; description?: string; locale: Locale }
-const { title, description = '', locale } = Astro.props;
+interface Props { title: string; description?: string; locale: Locale; path?: string }
+const { title, description = '', locale, path = '/' } = Astro.props;
+const en = `https://hadits.net${path}`;
+const ar = `https://hadits.net/ar${path}`;
 ---
 <!doctype html>
-<html lang={locale} dir={dir(locale)}>
+<html lang={locale} dir={dir(locale)} data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <link rel="alternate" hreflang="en" href="https://hadits.net/" />
-    <link rel="alternate" hreflang="ar" href="https://hadits.net/ar/" />
+    <link rel="alternate" hreflang="en" href={en} />
+    <link rel="alternate" hreflang="ar" href={ar} />
     <title>{title}</title>
+    <!-- Theme before paint: the reader's saved choice, otherwise dark (DESIGN.md). -->
+    <script is:inline>
+      try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
     <style is:global>
-      :root {
-        --bg: #fbfaf7; --surface: #ffffff; --text: #1d1b16; --muted: #6b665c; --line: #e6e1d6;
-        --accent: #0f5c4d; --ok: #1f7a4d; --warn: #a15c07; --bad: #a8321c; --grey: #6b665c;
-        --ar-font: 'Amiri', 'Scheherazade New', 'Noto Naskh Arabic', serif;
+      /* Neutral chrome (see DESIGN.md); status colours are the only colours, and they mean something. */
+      :root, :root[data-theme='dark'] {
+        --frame: #181818; --panel: #0e0e0e; --surface: #1c1c1c; --surface-2: #242424; --line: #2c2c2c;
+        --text: #f1f0ec; --muted: #a3a09a; --subtle: #8a877f; --invert-bg: #f1f0ec; --invert-text: #121212;
+        --ok: #5cc795; --warn: #e3ab52; --none: #a3a09a; --focus: #8ab4ff;
+        color-scheme: dark;
       }
-      @media (prefers-color-scheme: dark) {
-        :root { --bg: #14130f; --surface: #1c1b16; --text: #ece8de; --muted: #a39d90; --line: #2f2d26; --accent: #5cc2a7; --ok: #6fcf97; --warn: #f2b45a; --bad: #ef8a73; --grey: #a39d90; }
+      :root[data-theme='light'] {
+        --frame: #ece9e2; --panel: #faf9f6; --surface: #ffffff; --surface-2: #f2f0eb; --line: #dbd7ce;
+        --text: #1b1a17; --muted: #5d5950; --subtle: #6b675e; --invert-bg: #1b1a17; --invert-text: #faf9f6;
+        --ok: #1b7448; --warn: #8a5606; --none: #5d5950; --focus: #1d4ed8;
+        color-scheme: light;
+      }
+      :root {
+        --ui: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+        --scripture: 'Amiri', 'Noto Naskh Arabic', serif;
+        --r-panel: 22px; --r-input: 28px; --r-card: 14px; --r-small: 8px;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
-      main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
-      a { color: var(--accent); }
-      [lang='ar'], .ar { font-family: var(--ar-font); font-size: 1.25em; line-height: 1.9; }
+      html { background: var(--frame); }
+      body { margin: 0; background: var(--frame); color: var(--text); font: 16px/1.6 var(--ui); -webkit-font-smoothing: antialiased; }
+      :lang(ar) body, [lang='ar'] { font-family: 'IBM Plex Sans Arabic', var(--ui); }
+      a { color: inherit; }
+      :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+      .scripture { font-family: var(--scripture); font-size: 1.45rem; line-height: 2.05; direction: rtl; text-align: right; }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      button { font: inherit; color: inherit; }
     </style>
   </head>
   <body>

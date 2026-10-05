@@ -20,7 +20,7 @@ CHARS_PER_SECOND = {"id": 15.0, "ar": 11.0, "en": 15.0}
 
 DEMOS = [
     {"id": "sifat-sujud", "file": "demo-lecture-id.md", "lang": "id", "speaker": "Ustadz (contoh)"},
-    {"id": "wattaqullah", "file": "demo-lecture-ar.md", "lang": "ar", "speaker": "الشيخ (مثال)"},
+    {"id": "wattaqullah", "file": "demo-lecture-ar.md", "lang": "ar", "speaker": "الشيخ (مثال)", "title": "درس: تقوى الله بعد الحج"},
 ]
 
 
@@ -65,7 +65,7 @@ def main():
         title, segs = segments(md, d["lang"])
         for s in segs:
             s["speaker"] = d["speaker"]
-        lecture = {"id": d["id"], "title": title or d["id"], "lang": d["lang"], "duration": segs[-1]["end"] if segs else 0,
+        lecture = {"id": d["id"], "title": title or d.get("title") or d["id"], "lang": d["lang"], "duration": segs[-1]["end"] if segs else 0,
                    "synthetic_timing": True, "segments": segs}
         out = os.path.join(OUT, f"{d['id']}.json")
         json.dump(lecture, open(out, "w", encoding="utf-8"), ensure_ascii=False)
