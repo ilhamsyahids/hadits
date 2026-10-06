@@ -74,6 +74,8 @@ const initial = lecture ? await cachedReport(env, id, locale) : null;
     setOpen(!('askOpen' in document.documentElement.dataset));
   });
   window.addEventListener('ask-panel', (e) => setOpen((e as CustomEvent<boolean>).detail));
+  // "Ask about this" on a selection or a term opens the panel (AskChat fills its box from the same event).
+  window.addEventListener('ask-prefill', () => setOpen(true));
   document.addEventListener('keydown', (e) => e.key === 'Escape' && 'askOpen' in document.documentElement.dataset && setOpen(false));
   if (location.hash === '#ask') setOpen(true);
 </script>

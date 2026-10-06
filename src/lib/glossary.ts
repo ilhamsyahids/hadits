@@ -55,26 +55,47 @@ export const TERMS: Term[] = [
   { id: 'tahmid', ar: 'تحميد', forms: ['tahmid', 'taḥmīd'], en: 'Praising Allah: "Rabbanā wa laka al-ḥamd".', arGloss: 'قول: ربنا ولك الحمد.' },
 ];
 
-const BY_FORM = new Map<string, Term>();
-for (const t of TERMS) for (const f of t.forms) BY_FORM.set(f.toLowerCase(), t);
-const FORMS = [...BY_FORM.keys()].sort((a, b) => b.length - a.length).map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-// Whole words only; a letter (Latin or Arabic) on either side means it is part of another word.
-const RE = new RegExp(`(?<![\\p{L}\\p{M}'ʿ])(${FORMS.join('|')})(?![\\p{L}\\p{M}])`, 'giu');
+// Terms found by the model in one text (POST /v1/terms) join the curated ones for that text; the curated meaning
+// wins when both have the same word.
+export const extraTerm = (form: string, gloss: string): Term => ({ id: `x:${form}`, ar: '', forms: [form], en: gloss, arGloss: gloss });
+
+type Matcher = { byForm: Map<string, Term>; re: RegExp };
+const escape = (f: string) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function matcher(terms: Term[]): Matcher {
+  const byForm = new Map<string, Term>();
+  for (const t of terms) for (const f of t.forms) if (!byForm.has(f.toLowerCase())) byForm.set(f.toLowerCase(), t);
+  const forms = [...byForm.keys()].sort((a, b) => b.length - a.length).map(escape);
+  // Whole words only; a letter (Latin or Arabic) on either side means it is part of another word.
+  return { byForm, re: new RegExp(`(?<![\\p{L}\\p{M}'ʿ])(${forms.join('|') || '(?!)'})(?![\\p{L}\\p{M}])`, 'giu') };
+}
+const CURATED = matcher(TERMS);
+const memo = new WeakMap<Term[], Matcher>();
 
 export type TermPiece = { text: string; term?: Term };
 
-/** Split Latin-script text into plain pieces and glossary terms (first occurrence of each term per call only). */
-export function termPieces(text: string, seen = new Set<string>()): TermPiece[] {
+/**
+ * Split text into plain pieces and glossary terms, each term tagged once (`seen` carries that across calls).
+ * `curated` is off for Arabic-script text, where words like حسن or سنة have everyday meanings; terms the model found
+ * in this very text (`extra`) are used either way.
+ */
+export function termPieces(text: string, seen = new Set<string>(), extra: Term[] = [], curated = true): TermPiece[] {
+  const all = curated ? [...TERMS, ...extra] : extra;
+  if (!all.length) return [{ text }];
+  let m = curated && !extra.length ? CURATED : memo.get(extra);
+  if (!m || (!curated && m === CURATED)) {
+    m = matcher(all);
+    if (extra.length && curated) memo.set(extra, m);
+  }
   const out: TermPiece[] = [];
   let last = 0;
-  for (const m of text.matchAll(RE)) {
-    const word = m[0];
-    const term = BY_FORM.get(word.toLowerCase());
+  for (const hit of text.matchAll(m.re)) {
+    const word = hit[0];
+    const term = m.byForm.get(word.toLowerCase());
     if (!term || seen.has(term.id) || (term.lowerOnly && word !== word.toLowerCase())) continue;
     seen.add(term.id);
-    if (m.index! > last) out.push({ text: text.slice(last, m.index) });
+    if (hit.index! > last) out.push({ text: text.slice(last, hit.index) });
     out.push({ text: word, term });
-    last = m.index! + word.length;
+    last = hit.index! + word.length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
