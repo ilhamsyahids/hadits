@@ -330,7 +330,7 @@ function reset() {
     </form>
     <div class="chips">
       <template v-if="!chat.messages.value.length">
-        <button v-for="e in (lectureTitle ? (lectureKind === 'lecture' ? a.lectureExamples : a.articleExamples) : a.examples)" :key="e" type="button" @click="fill(e)">{{ e }}</button>
+        <button v-for="e in (lectureTitle ? (lectureKind === 'lecture' ? a.lectureExamples : a.articleExamples) : a.examples)" :key="e" type="button" :disabled="busy" @click="fill(e)">{{ e }}</button>
       </template>
       <button v-else type="button" @click="reset">{{ a.newChat }}</button>
     </div>
@@ -394,6 +394,7 @@ textarea::placeholder { color: var(--subtle); }
 .composer + .level { margin-top: 8px; }
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .chips button { border: 1px solid var(--line); background: transparent; border-radius: 20px; padding: 8px 16px; min-height: 40px; cursor: pointer; color: var(--text); }
+.chips button:disabled { opacity: 0.5; cursor: progress; }
 .chips button:hover { background: var(--surface-2); }
 .note { color: var(--subtle); font-size: 0.85rem; text-align: center; margin: 14px 0 0; }
 .spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }

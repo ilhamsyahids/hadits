@@ -41,7 +41,7 @@ const shown = computed<Shown[][]>(() => {
   <section class="translation">
     <div class="pick" role="group" :aria-label="r.translateTo">
       <span class="label">{{ r.translateTo }}</span>
-      <button v-for="l in targets" :key="l" type="button" :aria-pressed="to === l" @click="load(l)">{{ t.lectures.langName[l] }}</button>
+      <button v-for="l in targets" :key="l" type="button" :aria-pressed="to === l" :disabled="state === 'loading'" @click="load(l)">{{ t.lectures.langName[l] }}</button>
     </div>
     <p class="intro">{{ r.translationNote }}</p>
     <p v-if="state === 'loading'" class="status" role="status"><span class="spinner" aria-hidden="true"></span>{{ r.translating }}</p>
@@ -73,6 +73,7 @@ const shown = computed<Shown[][]>(() => {
 .pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 10px; }
 .label { color: var(--muted); font-size: 0.9rem; margin-inline-end: 4px; }
 .pick button { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 20px; padding: 6px 14px; min-height: 40px; cursor: pointer; font: inherit; }
+.pick button:disabled { opacity: 0.5; cursor: progress; }
 .pick button[aria-pressed='true'] { background: var(--invert-bg); color: var(--invert-text); border-color: var(--invert-bg); }
 .intro { color: var(--muted); font-size: 0.92rem; margin: 0 0 18px; max-width: 70ch; }
 .status { color: var(--muted); display: flex; gap: 10px; align-items: center; }

@@ -40,6 +40,7 @@ const quiz = ref<Question[]>([]);
 const qState = ref<'idle' | 'loading' | 'done' | 'error'>('idle');
 const picked = ref<Record<number, number>>({});
 async function startQuiz() {
+  if (qState.value === 'loading') return;
   qState.value = 'loading';
   try {
     const res = await fetch(`/v1/lectures/${props.id}/quiz?lang=${props.lang}`);
