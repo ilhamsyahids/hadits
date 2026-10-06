@@ -162,6 +162,26 @@ v1.post('/reviews', async (c) => {
   return c.json({ ok: true }, 201);
 });
 
+// Messages from the sources page: a dispute, a source to add, or feedback. Read on the admin page; kept 180 days.
+const MESSAGE_KINDS = ['dispute', 'suggest', 'feedback'];
+const MESSAGE_TTL = 60 * 60 * 24 * 180;
+v1.post('/messages', async (c) => {
+  const b = await c.req.json<{ kind?: string; key?: string; message?: string; email?: string }>().catch(() => ({}) as Record<string, never>);
+  const message = typeof b.message === 'string' ? b.message.trim().slice(0, 4000) : '';
+  const kind = MESSAGE_KINDS.includes(String(b.kind)) ? String(b.kind) : 'feedback';
+  if (message.length < 5) return c.json({ error: 'message is required' }, 400);
+  const email = typeof b.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim()) ? b.email.trim().slice(0, 200) : null;
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = `rl:message:${ip}:${Math.floor(Date.now() / 3_600_000)}`;
+  const n = Number((await c.env.CACHE.get(rl)) ?? 0);
+  if (n >= 10) return c.json({ error: 'rate_limited' }, 429);
+  await c.env.CACHE.put(rl, String(n + 1), { expirationTtl: 7200 });
+  const at = new Date().toISOString();
+  const item = { at, kind, key: typeof b.key === 'string' && b.key.trim() ? b.key.trim().slice(0, 300) : null, message, email };
+  await c.env.CACHE.put(`message:${at}:${crypto.randomUUID().slice(0, 8)}`, JSON.stringify(item), { expirationTtl: MESSAGE_TTL });
+  return c.json({ ok: true }, 201);
+});
+
 // A glossary term explained in its passage (the curated definition is on the page already). Cached per term,
 // passage and language; never quotes scripture.
 const EXPLAIN_SYSTEM = `You explain one Islamic term to a reader, as it is used in the passage given. Write {LANGUAGE}, two or three short sentences, plain words.

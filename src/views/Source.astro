@@ -172,6 +172,8 @@ if (row?.kind === 'quran') {
           </section>
         )}
 
+        <p class="report"><a href={href(`/sources?${new URLSearchParams({ key: u.key, kind: 'dispute' })}#contact`)}>{t.sourcePage.report}</a></p>
+
         <nav class="foot" aria-label={t.sourcePage.around}>
           {prev ? <a href={href(`/${prev.key}`)} rel="prev" class="step"><small>{t.sourcePage.prev}</small>{prev.label}</a> : <span />}
           {u.url && <a href={u.url} target="_blank" rel="noopener" class="out">{t.sourcePage.viewOn.replace('{site}', site ?? '')}</a>}
@@ -222,6 +224,8 @@ if (row?.kind === 'quran') {
   .links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
   .foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .foot { align-items: center; }
+  .report { margin: 32px 0 0; font-size: 0.92rem; }
+  .report a { color: var(--muted); text-underline-offset: 3px; }
   .foot a { color: var(--muted); text-underline-offset: 3px; padding: 10px 0; }
   .foot .step { display: flex; flex-direction: column; color: var(--text); text-decoration: none; min-width: 0; }
   .foot .step small { color: var(--muted); font-size: 0.82rem; }

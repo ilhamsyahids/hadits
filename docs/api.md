@@ -19,6 +19,7 @@ JSON over HTTP, same origin as the site. `lang` is `en`, `ar` or `id` and sets t
 | `POST /v1/documents` | `{ text, title?, filename? }` | `{ id, token }`. Kept 30 days. 10 per address per hour. |
 | `DELETE /v1/documents/:id` | `Authorization: Bearer {token}` | Deletes the text and everything built from it |
 | `POST /v1/reviews` | `{ said, status, key?, page?, note? }` | Adds a finding to the review queue. 30 per address per hour. |
+| `POST /v1/messages` | `{ kind: dispute \| suggest \| feedback, message, key?, email? }` | A message for the admin page. Kept 180 days. 10 per address per hour. |
 | `POST /v1/explain` | `{ term, context, lang }`, or `{ label, gloss, context, lang }` for a found term | What the term means in the passage. 120 per address per hour. |
 | `POST /v1/terms` | `{ text, lang }` | Glossary terms found in any text (Ask answers). 120 per address per hour. |
 
@@ -31,6 +32,8 @@ Every `/admin/*` route takes either `Authorization: Bearer {ADMIN_TOKEN}` or the
 | Method and path | Does |
 | --- | --- |
 | `POST /admin/login`, `POST /admin/logout` | Sign in and out (form post from `/admin`) |
+| `GET /admin/messages` | Messages from the sources page, newest first |
+| `DELETE /admin/messages/:id` | Remove one message |
 | `GET /admin/reviews` | Review queue, newest first |
 | `DELETE /admin/reviews/:id` | Remove one review |
 | `GET /admin/documents` | Submitted texts, newest first |
