@@ -142,3 +142,21 @@ v1.delete('/documents/:id', async (c) => {
   ]);
   return c.json({ deleted: id });
 });
+
+// Human review: a reader sends a finding that needs a scholar ("not found", weak or disputed, a misquote) to the
+// reviewer's queue. Kept 90 days in KV; read with GET /admin/reviews.
+const REVIEW_TTL = 60 * 60 * 24 * 90;
+v1.post('/reviews', async (c) => {
+  const b = await c.req.json<{ said?: string; status?: string; key?: string | null; page?: string; note?: string }>().catch(() => ({}) as Record<string, never>);
+  const said = typeof b.said === 'string' ? b.said.trim().slice(0, 2000) : '';
+  if (!said || typeof b.status !== 'string') return c.json({ error: 'said and status are required' }, 400);
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = `rl:review:${ip}:${Math.floor(Date.now() / 3_600_000)}`;
+  const n = Number((await c.env.CACHE.get(rl)) ?? 0);
+  if (n >= 30) return c.json({ error: 'rate_limited' }, 429);
+  await c.env.CACHE.put(rl, String(n + 1), { expirationTtl: 7200 });
+  const at = new Date().toISOString();
+  const item = { at, said, status: b.status.slice(0, 40), key: typeof b.key === 'string' ? b.key.slice(0, 80) : null, page: typeof b.page === 'string' ? b.page.slice(0, 300) : null, note: typeof b.note === 'string' ? b.note.slice(0, 1000) : null };
+  await c.env.CACHE.put(`review:${at}:${crypto.randomUUID().slice(0, 8)}`, JSON.stringify(item), { expirationTtl: REVIEW_TTL });
+  return c.json({ ok: true }, 201);
+});

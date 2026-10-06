@@ -72,6 +72,9 @@ function retry() {
 }
 
 const input = ref('');
+// Who is asking: plain words for someone new to Islam, terms and detail for a student. Remembered in this browser.
+const level = ref<'new' | 'student'>(store.get<'new' | 'student'>('ask:level') ?? 'student');
+watch(level, (v) => store.set('ask:level', v));
 const scroller = ref<HTMLElement | null>(null);
 const busy = computed(() => chat.status.value === 'submitted' || chat.status.value === 'streaming');
 
@@ -95,7 +98,7 @@ function send(text?: string) {
     url.searchParams.set('c', convId);
     history.replaceState(null, '', url);
   }
-  chat.sendMessage({ text: q }, { body: { lang: props.lang, lectureId: props.lectureId ?? undefined } });
+  chat.sendMessage({ text: q }, { body: { lang: props.lang, lectureId: props.lectureId ?? undefined, level: level.value } });
 }
 
 type Part = { type: string; text?: string; data?: unknown; id?: string; state?: string; output?: unknown; input?: unknown };
@@ -271,6 +274,7 @@ function reset() {
           <p v-if="!busy && !answerText(m.parts as Part[]).trim() && m.id === chat.messages.value.at(-1)?.id" class="error" role="alert">
             {{ a.emptyAnswer }} <button type="button" class="link" @click="retry">{{ t.retry }}</button>
           </p>
+          <p v-if="answerText(m.parts as Part[]).trim() && !(busy && m.id === chat.messages.value.at(-1)?.id)" class="ai-label">{{ a.aiLabel }}</p>
           <details v-if="consulted(m.parts as Part[]).length" class="sources">
             <summary>{{ a.sources }} ({{ consulted(m.parts as Part[]).length }})</summary>
             <ul>
@@ -288,6 +292,11 @@ function reset() {
     <p v-if="chat.error.value || stalled" class="error" role="alert">{{ stalled ? a.stalled : a.error }} <button type="button" class="link" @click="retry">{{ t.retry }}</button></p>
     <div ref="scroller"></div>
 
+    <div class="level" role="group" :aria-label="a.level.label">
+      <span class="level-label">{{ a.level.label }}</span>
+      <button type="button" :aria-pressed="level === 'new'" @click="level = 'new'">{{ a.level.new }}</button>
+      <button type="button" :aria-pressed="level === 'student'" @click="level = 'student'">{{ a.level.student }}</button>
+    </div>
     <form class="composer" @submit.prevent="send()">
       <label class="sr-only" for="ask-input">{{ a.placeholder }}</label>
       <textarea id="ask-input" ref="inputEl" v-model="input" :placeholder="a.placeholder" rows="1" dir="auto" @keydown.enter.exact.prevent="send()" />
@@ -308,7 +317,7 @@ function reset() {
 /* Embedded beside a report: a column that scrolls its own thread, the composer always at the bottom. */
 .ask.embedded { max-width: none; margin: 0; padding: 0 16px 14px; min-height: 0; height: 100%; }
 .embedded .thread { overflow-y: auto; padding: 12px 2px; gap: 18px; }
-.embedded .composer { position: static; margin-top: 10px; }
+.embedded .composer { position: static; margin-top: 6px; }
 .embedded .chips { justify-content: flex-start; gap: 8px; }
 .embedded .chips button { font-size: 0.9rem; padding: 6px 12px; }
 .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 0 10px; border-bottom: 1px solid var(--line); }
@@ -351,6 +360,13 @@ textarea::placeholder { color: var(--subtle); }
 .composer button { border: 0; border-radius: 22px; background: var(--invert-bg); color: var(--invert-text); font-weight: 500; padding: 0 20px; min-height: 44px; cursor: pointer; }
 .composer button:disabled { opacity: 0.45; cursor: default; }
 .composer .secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.level { display: flex; align-items: center; gap: 6px; margin-top: 18px; flex-wrap: wrap; }
+.level-label { color: var(--muted); font-size: 0.86rem; margin-inline-end: 4px; }
+.level button { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 16px; padding: 4px 12px; min-height: 32px; font: inherit; font-size: 0.86rem; cursor: pointer; }
+.level button[aria-pressed='true'] { background: var(--surface-2); color: var(--text); border-color: var(--muted); }
+.embedded .level { margin-top: 8px; }
+.ai-label { color: var(--subtle); font-size: 0.82rem; margin: 2px 0 0; }
+.composer + .level { margin-top: 8px; }
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .chips button { border: 1px solid var(--line); background: transparent; border-radius: 20px; padding: 8px 16px; min-height: 40px; cursor: pointer; color: var(--text); }
 .chips button:hover { background: var(--surface-2); }

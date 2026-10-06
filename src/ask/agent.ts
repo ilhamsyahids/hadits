@@ -53,7 +53,8 @@ export class AskAgent extends AIChatAgent<Bindings> {
 
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     const env = this.env;
-    const body = (options?.body ?? {}) as { lang?: string; lectureId?: string };
+    const body = (options?.body ?? {}) as { lang?: string; lectureId?: string; level?: string };
+    const level = body.level === 'new' ? ('new' as const) : ('student' as const);
     const lang = asLang(body.lang);
     const lectureId = typeof body.lectureId === 'string' ? body.lectureId : null;
     const lecture = lectureId ? await env.CACHE.get<{ title: string; kind?: 'lecture' | 'article' | 'text' }>(`lecture:${lectureId}`, 'json') : null;
@@ -78,7 +79,7 @@ export class AskAgent extends AIChatAgent<Bindings> {
               }
             : {}),
         });
-        const system = instructions({ lang, lecture: lecture ? { title: lecture.title, kind: lecture.kind ?? 'lecture' } : null });
+        const system = instructions({ lang, level, lecture: lecture ? { title: lecture.title, kind: lecture.kind ?? 'lecture' } : null });
         const history = await convertToModelMessages(this.messages);
         const result = streamText({
           model: google(env.LLM_MODEL),
