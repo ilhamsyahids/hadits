@@ -50,12 +50,12 @@ async function submit() {
     <p class="muted">{{ s.intro }}</p>
     <form @submit.prevent="submit">
       <label class="sr-only" for="doc-text">{{ s.placeholder }}</label>
-      <textarea id="doc-text" v-model="text" :placeholder="s.placeholder" rows="7" dir="auto" @input="filename = undefined" />
+      <textarea id="doc-text" v-model="text" :placeholder="s.placeholder" rows="7" dir="auto" :readonly="state === 'saving'" @input="filename = undefined" />
       <div class="row">
         <label class="sr-only" for="doc-title">{{ s.title }}</label>
-        <input id="doc-title" v-model="title" type="text" :placeholder="s.title" dir="auto" maxlength="160" />
+        <input id="doc-title" v-model="title" type="text" :placeholder="s.title" dir="auto" maxlength="160" :readonly="state === 'saving'" />
         <label class="file">
-          <input type="file" accept=".txt,.md,.markdown,.srt,.vtt,text/plain,text/markdown" @change="open" />
+          <input type="file" accept=".txt,.md,.markdown,.srt,.vtt,text/plain,text/markdown" :disabled="state === 'saving'" @change="open" />
           {{ s.file }}
         </label>
         <button type="submit" :disabled="!text.trim() || state === 'saving'">{{ state === 'saving' ? s.submitting : s.submit }}</button>

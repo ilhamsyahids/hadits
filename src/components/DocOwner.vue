@@ -7,21 +7,23 @@ import { deleteText, myDocs } from '../lib/documents';
 const props = defineProps<{ id: string; expires: number; t: Strings; lang: 'en' | 'ar' }>();
 const mine = ref(false);
 const failed = ref(false);
+const deleting = ref(false);
 onMounted(() => (mine.value = !!myDocs().find((d) => d.id === props.id)?.token));
 const date = new Date(props.expires).toLocaleDateString(props.lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
 async function remove() {
   if (!confirm(props.t.submit.deleteConfirm)) return;
   failed.value = false;
+  deleting.value = true;
   if (await deleteText(props.id)) location.href = `${props.lang === 'ar' ? '/ar' : ''}/lectures`;
-  else failed.value = true;
+  else (failed.value = true), (deleting.value = false);
 }
 </script>
 
 <template>
   <span class="owner">
     {{ t.submit.keptUntil.replace('{date}', date) }}
-    <button v-if="mine" type="button" @click="remove">{{ t.submit.delete }}</button>
+    <button v-if="mine" type="button" :disabled="deleting" @click="remove">{{ t.submit.delete }}</button>
     <span v-if="failed" class="error" role="alert">{{ t.submit.deleteFailed }}</span>
   </span>
 </template>

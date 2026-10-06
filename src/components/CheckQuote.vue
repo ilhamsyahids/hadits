@@ -76,7 +76,7 @@ onMounted(() => {
     </form>
     <p v-if="whole" class="whole">{{ t.submit.longHint }}</p>
     <div class="chips" :aria-label="t.examples">
-      <button v-for="e in examples" :key="e.text" type="button" @click="fill(e.text)">{{ e.label }}</button>
+      <button v-for="e in examples" :key="e.text" type="button" :disabled="state === 'loading'" @click="fill(e.text)">{{ e.label }}</button>
     </div>
     <p class="more"><a :href="`${base}/lectures`">{{ t.submit.heading }}</a></p>
   </section>
@@ -114,6 +114,7 @@ button[type='submit'] { border: 0; border-radius: 22px; background: var(--invert
 button[type='submit']:disabled { opacity: 0.45; cursor: default; }
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 18px; }
 .chips button { border: 1px solid var(--line); background: transparent; border-radius: 20px; padding: 8px 16px; min-height: 40px; cursor: pointer; color: var(--text); }
+.chips button:disabled { opacity: 0.5; cursor: progress; }
 .chips button:hover { background: var(--surface-2); }
 .results { max-width: 900px; margin: 32px auto 0; display: flex; flex-direction: column; gap: 16px; outline: none; }
 .status-line { color: var(--muted); display: flex; align-items: center; gap: 10px; justify-content: center; margin: 0; }

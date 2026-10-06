@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Strings } from '../i18n/strings';
 import { termPieces, type TermPiece } from '../lib/glossary';
 import LearnView from './LearnView.vue';
@@ -19,6 +19,8 @@ const state = ref<'loading' | 'done' | 'error'>(props.initial ? 'done' : 'loadin
 const report = ref<Report | null>(props.initial ?? null);
 const filter = ref<Filter>('all');
 const view = ref<'findings' | 'text' | 'translation' | 'learn'>('findings');
+const opened = ref(new Set<string>());
+watch(view, (v) => opened.value.add(v));
 
 // Most serious first: a stack leads with the occurrence that needs the reader's attention.
 const SEVERITY: Record<string, number> = { misquote: 0, not_found_in_corpus: 1, weak_or_disputed: 2, paraphrase: 3, reference: 4, verbatim: 5 };
@@ -212,8 +214,9 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
   </template>
 
   <!-- The text is readable while the report is built, and when nothing was found. -->
-  <LearnView v-if="state === 'done' && view === 'learn' && report" :id="id" :refs="report.refs" :t="t" :lang="lang" />
-  <TranslationView v-if="state === 'done' && view === 'translation'" :id="id" :text-lang="textLang" :t="t" :lang="lang" />
+  <!-- Kept alive once opened: switching tabs must not start the same generation again. -->
+  <LearnView v-if="state === 'done' && opened.has('learn') && report" v-show="view === 'learn'" :id="id" :refs="report.refs" :t="t" :lang="lang" />
+  <TranslationView v-if="state === 'done' && opened.has('translation')" v-show="view === 'translation'" :id="id" :text-lang="textLang" :t="t" :lang="lang" />
   <section v-if="state === 'loading' || (state === 'done' && (view === 'text' || !report?.refs.length))" class="fulltext">
     <p class="text-intro">{{ t.report.textIntro }}</p>
     <template v-for="p in paragraphs" :key="p.i">
