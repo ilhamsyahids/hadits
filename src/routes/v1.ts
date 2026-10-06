@@ -8,6 +8,7 @@ import type { Segment } from '../verify/detect';
 import { type Detector, verify } from '../verify/verify';
 import type { Doc, DocIndexItem } from '../lectures/doc';
 import { guessLang, parseText } from '../lectures/parse';
+import { translateDoc, translationKey } from '../lectures/translate';
 import { buildReport, cachedReport, decisionsKey, reportKey, VERIFY_VERSION } from '../lectures/report';
 
 export const v1 = new Hono<AppEnv>();
@@ -141,6 +142,7 @@ v1.delete('/documents/:id', async (c) => {
     c.env.CACHE.delete(`doc:hash:${doc.submitted.text_hash}`),
     ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(reportKey(id, l))),
     c.env.CACHE.delete(decisionsKey(id)),
+    ...(['en', 'ar', 'id'] as const).map((l) => c.env.CACHE.delete(translationKey(id, l))),
   ]);
   return c.json({ deleted: id });
 });
@@ -192,4 +194,19 @@ v1.post('/explain', async (c) => {
   const out = { text: data.text };
   c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * 30 }));
   return c.json(out);
+});
+
+// Translation of a text with its scripture left to the sources (src/lectures/translate.ts). Cached like reports.
+v1.get('/lectures/:id/translation', async (c) => {
+  const id = c.req.param('id');
+  const to = asLang(c.req.query('to'));
+  const key = translationKey(id, to);
+  const cached = await c.env.CACHE.get(key, 'json');
+  if (cached) return c.json(cached);
+  const doc = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
+  if (!doc) return c.json({ error: 'not_found' }, 404);
+  const t = await translateDoc(c.env, doc, to, (p) => c.executionCtx.waitUntil(p));
+  const ttl = doc.submitted ? Math.max(60, Math.floor((doc.submitted.expires - Date.now()) / 1000)) : undefined;
+  c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(t), ttl ? { expirationTtl: ttl } : {}));
+  return c.json(t);
 });

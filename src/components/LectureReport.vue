@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
 import { termPieces, type TermPiece } from '../lib/glossary';
+import TranslationView from './TranslationView.vue';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
 
 // Lecture report: GET /v1/lectures/:id/report (cached after the first run) → overview + one stack per dalil, and
@@ -16,7 +17,7 @@ const props = defineProps<{ id: string; initial?: Report | null; duration: numbe
 const state = ref<'loading' | 'done' | 'error'>(props.initial ? 'done' : 'loading');
 const report = ref<Report | null>(props.initial ?? null);
 const filter = ref<Filter>('all');
-const view = ref<'findings' | 'text'>('findings');
+const view = ref<'findings' | 'text' | 'translation'>('findings');
 
 // Most serious first: a stack leads with the occurrence that needs the reader's attention.
 const SEVERITY: Record<string, number> = { misquote: 0, not_found_in_corpus: 1, weak_or_disputed: 2, paraphrase: 3, reference: 4, verbatim: 5 };
@@ -178,6 +179,7 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
         <div class="views" role="group">
           <button type="button" :aria-pressed="view === 'findings'" @click="view = 'findings'">{{ t.report.findings }}</button>
           <button type="button" :aria-pressed="view === 'text'" @click="view = 'text'">{{ t.report.fullText }}</button>
+          <button type="button" :aria-pressed="view === 'translation'" @click="view = 'translation'">{{ t.report.translation }}</button>
         </div>
         <div v-if="view === 'findings'" class="filters" role="group">
           <button v-for="f in filters" :key="f.id" type="button" :aria-pressed="filter === f.id" @click="filter = f.id">{{ f.label }}</button>
@@ -208,6 +210,7 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
   </template>
 
   <!-- The text is readable while the report is built, and when nothing was found. -->
+  <TranslationView v-if="state === 'done' && view === 'translation'" :id="id" :text-lang="textLang" :t="t" :lang="lang" />
   <section v-if="state === 'loading' || (state === 'done' && (view === 'text' || !report?.refs.length))" class="fulltext">
     <p class="text-intro">{{ t.report.textIntro }}</p>
     <template v-for="p in paragraphs" :key="p.i">
