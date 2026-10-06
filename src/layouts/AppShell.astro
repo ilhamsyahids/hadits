@@ -1,6 +1,7 @@
 ---
 import { env } from 'cloudflare:workers';
 import Base from './Base.astro';
+import TermPopover from '../components/TermPopover.vue';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
@@ -93,6 +94,7 @@ const href = (p: string) => localePath(locale, p);
       </div>
     </main>
   </div>
+  <TermPopover client:idle t={t} lang={locale} />
 </Base>
 
 <script>

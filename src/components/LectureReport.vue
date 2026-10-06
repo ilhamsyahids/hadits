@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Strings } from '../i18n/strings';
+import { termPieces, type TermPiece } from '../lib/glossary';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
 
 // Lecture report: GET /v1/lectures/:id/report (cached after the first run) → overview + one stack per dalil, and
@@ -108,10 +109,14 @@ function showInText(i: number) {
 
 // The full text in paragraphs, split into plain pieces and marked quotes. Offsets follow lectureText() on the
 // server: each segment's text joined with a newline.
-type Piece = { text: string; ref?: Verdict };
+type Piece = { text: string; ref?: Verdict; terms?: TermPiece[] };
+// Islamic terms in a Latin-script text are tagged for the glossary (where each first appears).
+const tagTerms = props.textLang !== 'ar';
+const plain = (text: string, seen: Set<string>): Piece => (tagTerms ? { text, terms: termPieces(text, seen) } : { text });
 const paragraphs = computed(() => {
   const refs = (report.value?.refs ?? []).filter((r) => r.a != null && r.b != null);
   let from = 0;
+  const seen = new Set<string>(); // each term tagged once, where it first appears
   return props.segments.map((seg, i) => {
     const to = from + seg.text.length;
     const marks = refs
@@ -122,11 +127,11 @@ const paragraphs = computed(() => {
     let last = 0;
     for (const m of marks) {
       if (m.a < last) continue;
-      if (m.a > last) pieces.push({ text: seg.text.slice(last, m.a) });
+      if (m.a > last) pieces.push(plain(seg.text.slice(last, m.a), seen));
       pieces.push({ text: seg.text.slice(m.a, m.b), ref: m.r });
       last = m.b;
     }
-    if (last < seg.text.length) pieces.push({ text: seg.text.slice(last) });
+    if (last < seg.text.length) pieces.push(plain(seg.text.slice(last), seen));
     const heading = seg.section && seg.section !== props.segments[i - 1]?.section ? seg.section : null;
     from = to + 1;
     return { i, pieces, heading };
@@ -215,7 +220,7 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
           :class="['hl', tone(x.ref.status)]"
           :title="`${x.ref.match?.reference ?? ''} · ${t.status[x.ref.status]}`"
           @click.prevent="jump(x.ref.id)"
-        >{{ x.text }}</a><template v-else>{{ x.text }}</template></template></span>
+        >{{ x.text }}</a><template v-else-if="x.terms"><template v-for="(y, j) in x.terms" :key="j"><button v-if="y.term" type="button" class="term" :data-term="y.term.id">{{ y.text }}</button><template v-else>{{ y.text }}</template></template></template><template v-else>{{ x.text }}</template></template></span>
       </p>
     </template>
   </section>

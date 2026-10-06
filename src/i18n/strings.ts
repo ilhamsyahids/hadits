@@ -150,6 +150,7 @@ const en = {
     articleExamples: ['What evidence does it give?', 'Are the hadith in it authentic?', 'Summarise the main points with their dalil'],
     open: 'Ask about this lecture',
   },
+  glossary: { here: 'In this passage', loading: 'Explaining…', error: 'Could not explain it now.', aiNote: 'The explanation is written by AI from the passage.' },
   share: { label: 'Share', copied: 'Link copied', report: 'Report on Dalil' },
   about: {
     nav: 'About',
@@ -362,6 +363,7 @@ const ar: typeof en = {
     articleExamples: ['ما الأدلة المذكورة فيه؟', 'هل أحاديثه صحيحة؟', 'لخّص أهم النقاط مع أدلتها'],
     open: 'اسأل عن هذا الدرس',
   },
+  glossary: { here: 'في هذا الموضع', loading: 'جارٍ الشرح…', error: 'تعذّر الشرح الآن.', aiNote: 'الشرح من كتابة الذكاء الاصطناعي اعتمادًا على النص.' },
   share: { label: 'مشاركة', copied: 'نُسخ الرابط', report: 'تقرير في دليل' },
   about: {
     nav: 'عن الموقع',

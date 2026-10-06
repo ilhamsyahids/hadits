@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Strings } from '../i18n/strings';
+import { termPieces } from '../lib/glossary';
 import { prophetic } from '../lib/prophetic';
 
 // Ask: a chat with the AskAgent Durable Object over WebSocket. The model's answer may only point at scripture
@@ -170,6 +171,7 @@ async function enhance(root: HTMLElement, parts: Part[]) {
       sup.append(el);
     }
   }
+  tagTermsIn(root);
   for (const box of root.querySelectorAll<HTMLElement>('.scripture-ref')) {
     const key = box.dataset.key ?? '';
     if (box.dataset.filled === key) continue;
@@ -194,6 +196,29 @@ async function enhance(root: HTMLElement, parts: Part[]) {
     const link = document.createElement('a');
     Object.assign(link, { href: `${base}/${key}`, target: '_blank', rel: 'noopener', textContent: u.reference });
     box.append(p, link);
+  }
+}
+
+/** Glossary terms in an English answer become buttons (TermPopover explains them); scripture and links stay as they are. */
+function tagTermsIn(root: HTMLElement) {
+  if (props.lang === 'ar') return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => ((n.parentElement?.closest('.scripture-ref, a, sup, code, button') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)),
+  });
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+  const seen = new Set<string>();
+  for (const node of nodes) {
+    const pieces = termPieces(node.data, seen);
+    if (!pieces.some((p) => p.term)) continue;
+    node.replaceWith(
+      ...pieces.map((p) => {
+        if (!p.term) return document.createTextNode(p.text);
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'term', textContent: p.text });
+        b.dataset.term = p.term.id;
+        return b;
+      }),
+    );
   }
 }
 
