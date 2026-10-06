@@ -173,12 +173,11 @@ export async function verify(
       degraded.push(`extract: ${String(e).slice(0, 120)}`);
     }
   }
-  // The model found nothing in a typed check: keep what the rules found (a bare reference such as "HR Bukhari 1").
-  if (latinQuote && !spans.length) spans = rules;
   if (latinQuote && !spans.length) {
-    // Nothing recognised: treat the whole input as a meaning to look up.
+    // The model found nothing in a typed check: keep what the rules found (a bare reference such as "HR Bukhari 1");
+    // if they found nothing either, look the whole input up as a meaning.
     const text = lectureText(segments);
-    spans = [makeSpan(segments, text, { a: 0, b: segments[0].text.length }, { spoken: segments[0].text, words: [], meaning: segments[0].text, cue: null, detector: 'rules' })];
+    spans = rules.length ? rules : [makeSpan(segments, text, { a: 0, b: segments[0].text.length }, { spoken: segments[0].text, words: [], meaning: segments[0].text, cue: null, detector: 'rules' })];
   }
   // Every map below is keyed by span id, so ids must be unique whichever detector produced the spans.
   if (!saved) spans = spans.sort((x, y) => x.a - y.a).map((s, i) => ({ ...s, id: i }));
