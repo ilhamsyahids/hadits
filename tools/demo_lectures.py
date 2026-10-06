@@ -88,15 +88,19 @@ def wikipedia(title, revision=None):
 
 
 def warm():
-    """Request each sample report once per language, one at a time (each builds in 5-30 s, then it is cached)."""
+    """Build each sample's reports, translations and quizzes once, one at a time (each takes 5-60 s, then it is cached)."""
     base = os.environ.get("HADITS_URL", "https://hadits.net")
     for d in DEMOS:
-        for lang in ("en", "ar"):
-            url = f"{base}/v1/lectures/{d['id']}/report?lang={lang}"
+        paths = [f"report?lang={l}" for l in ("en", "ar")]
+        paths += [f"translation?to={l}" for l in ("en", "ar", "id") if l != d["lang"]]
+        paths += [f"quiz?lang={l}" for l in ("en", "ar")]
+        for path in paths:
+            url = f"{base}/v1/lectures/{d['id']}/{path}"
+            lang = path
             for attempt in (1, 2):
                 try:
-                    body = json.load(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=120))
-                    print(f"{d['id']} {lang}: {'cached' if body.get('cached') else 'built'}, {len(body.get('refs', []))} quotes")
+                    body = json.load(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=180))
+                    print(f"{d['id']} {lang}: ok ({len(body.get('refs') or body.get('paragraphs') or body.get('questions') or [])} items)", flush=True)
                     break
                 except Exception as e:  # noqa: BLE001 (report and retry once)
                     print(f"{d['id']} {lang}: attempt {attempt} failed ({e})")
