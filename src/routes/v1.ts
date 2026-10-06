@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { asLang, family, present, resolveKey } from '../corpus/units';
+import { generateJSON } from '../lib/gemini';
+import { termById } from '../lib/glossary';
 import type { AppEnv } from '../env';
 import { search } from '../search/search';
 import type { Segment } from '../verify/detect';
@@ -159,4 +161,35 @@ v1.post('/reviews', async (c) => {
   const item = { at, said, status: b.status.slice(0, 40), key: typeof b.key === 'string' ? b.key.slice(0, 80) : null, page: typeof b.page === 'string' ? b.page.slice(0, 300) : null, note: typeof b.note === 'string' ? b.note.slice(0, 1000) : null };
   await c.env.CACHE.put(`review:${at}:${crypto.randomUUID().slice(0, 8)}`, JSON.stringify(item), { expirationTtl: REVIEW_TTL });
   return c.json({ ok: true }, 201);
+});
+
+// A glossary term explained in its passage (the curated definition is on the page already). Cached per term,
+// passage and language; never quotes scripture.
+const EXPLAIN_SYSTEM = `You explain one Islamic term to a reader, as it is used in the passage given. Write {LANGUAGE}, two or three short sentences, plain words.
+Say what the term means and what it means here in this passage. Do not quote the Quran or hadith, do not give a ruling, and do not add anything the passage does not support.`;
+v1.post('/explain', async (c) => {
+  const b = await c.req.json<{ term?: string; context?: string; lang?: string }>().catch(() => ({}) as Record<string, never>);
+  const term = termById(String(b.term ?? ''));
+  const context = typeof b.context === 'string' ? b.context.slice(0, 1500) : '';
+  if (!term || !context) return c.json({ error: 'term and context are required' }, 400);
+  const lang = asLang(b.lang);
+  const key = `explain:v1:${await hash(JSON.stringify([term.id, context, lang]))}`;
+  const cached = await c.env.CACHE.get<{ text: string }>(key, 'json');
+  if (cached) return c.json(cached);
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = `rl:explain:${ip}:${Math.floor(Date.now() / 3_600_000)}`;
+  const n = Number((await c.env.CACHE.get(rl)) ?? 0);
+  if (n >= 120) return c.json({ error: 'rate_limited' }, 429);
+  c.executionCtx.waitUntil(c.env.CACHE.put(rl, String(n + 1), { expirationTtl: 7200 }));
+  const language = { en: 'in English', ar: 'in Arabic', id: 'in Bahasa Indonesia' }[lang];
+  const { data } = await generateJSON<{ text: string }>(c.env, {
+    model: c.env.LLM_MODEL_LITE,
+    system: EXPLAIN_SYSTEM.replace('{LANGUAGE}', language),
+    prompt: `Term: ${term.forms[0]} (${term.ar}): ${term.en}\nPassage: ${context}`,
+    schema: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] },
+    thinking: 'minimal',
+  });
+  const out = { text: data.text };
+  c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * 30 }));
+  return c.json(out);
 });
