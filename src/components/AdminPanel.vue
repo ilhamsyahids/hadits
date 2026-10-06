@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
-// The admin page's two lists (src/pages/admin.astro): findings readers sent for review (POST /v1/reviews) and the
-// texts they submitted (POST /v1/documents). Removing an item is the only action; nothing else changes.
+// The admin page's lists (src/pages/admin.astro): messages from the sources page (POST /v1/messages), findings readers
+// sent for review (POST /v1/reviews) and the texts they submitted (POST /v1/documents). Removing an item is the only
+// action; nothing else changes.
+type Message = { id: string; at: string; kind: string; key: string | null; message: string; email: string | null };
 type Review = { id: string; at: string; said: string; status: string; key: string | null; page: string | null; note: string | null };
 type Submitted = { id: string; title: string; lang: string; created: number; chars?: number; expires: number | null };
 type List<T> = { state: 'loading' | 'done' | 'error'; items: T[] };
 
+const messages = ref<List<Message>>({ state: 'loading', items: [] });
 const reviews = ref<List<Review>>({ state: 'loading', items: [] });
 const docs = ref<List<Submitted>>({ state: 'loading', items: [] });
 const busy = ref<string | null>(null);
@@ -15,6 +18,9 @@ const STATUS: Record<string, string> = { not_found_in_corpus: 'Not found', weak_
 const when = (t: string | number) => new Date(t).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 const day = (t: number) => new Date(t).toLocaleDateString('en-GB', { dateStyle: 'medium' });
 const LANG: Record<string, string> = { ar: 'Arabic', en: 'English', id: 'Indonesian' };
+const KIND: Record<string, string> = { dispute: 'Dispute', suggest: 'Suggested source', feedback: 'Feedback' };
+// What the reader typed as "page or key": a site path, a full URL, or a key such as bukhari:1.
+const keyHref = (k: string) => (/^https?:\/\//.test(k) || k.startsWith('/') ? k : /^[a-z0-9_]+:[0-9a-z:]+$/i.test(k) ? `/${k}` : null);
 
 async function call(path: string, init?: RequestInit) {
   const res = await fetch(path, { credentials: 'same-origin', ...init });
@@ -23,19 +29,19 @@ async function call(path: string, init?: RequestInit) {
   if (!res.ok) throw new Error(String(res.status));
   return res.json();
 }
-async function load<T>(list: typeof reviews | typeof docs, path: string) {
+async function load<T>(list: typeof messages | typeof reviews | typeof docs, path: string) {
   try {
     (list.value as List<T>) = { state: 'done', items: await call(path) };
   } catch {
     list.value = { state: 'error', items: [] };
   }
 }
-async function remove(kind: 'reviews' | 'documents', id: string, ask: string | null) {
+async function remove(kind: 'messages' | 'reviews' | 'documents', id: string, ask: string | null) {
   if (ask && !confirm(ask)) return;
   busy.value = id;
   try {
     await call(`/admin/${kind}/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    const list = kind === 'reviews' ? reviews : docs;
+    const list = kind === 'messages' ? messages : kind === 'reviews' ? reviews : docs;
     (list.value.items as { id: string }[]) = list.value.items.filter((x) => x.id !== id);
   } catch {
     alert('Could not remove it. Try again.');
@@ -44,12 +50,36 @@ async function remove(kind: 'reviews' | 'documents', id: string, ask: string | n
   }
 }
 onMounted(() => {
+  load<Message>(messages, '/admin/messages');
   load<Review>(reviews, '/admin/reviews');
   load<Submitted>(docs, '/admin/documents');
 });
 </script>
 
 <template>
+  <section aria-labelledby="h-messages">
+    <h2 id="h-messages">Messages <span v-if="messages.state === 'done'" class="count">{{ messages.items.length }}</span></h2>
+    <p class="muted">Disputes, suggested sources and feedback from the sources page. Kept 180 days; "Done" removes one.</p>
+    <p v-if="messages.state === 'loading'" class="muted">Loading…</p>
+    <p v-else-if="messages.state === 'error'" class="error">Could not load the messages.</p>
+    <p v-else-if="!messages.items.length" class="empty">No messages.</p>
+    <ul v-else class="rows">
+      <li v-for="m in messages.items" :key="m.id">
+        <div class="meta">
+          <span class="status">{{ KIND[m.kind] ?? m.kind }}</span>
+          <span>{{ when(m.at) }}</span>
+          <template v-if="m.key">
+            <a v-if="keyHref(m.key)" :href="keyHref(m.key)!" target="_blank" rel="noopener" dir="auto">{{ m.key }}</a>
+            <span v-else dir="auto">{{ m.key }}</span>
+          </template>
+          <a v-if="m.email" :href="`mailto:${m.email}`">{{ m.email }}</a>
+        </div>
+        <p class="said msg" dir="auto">{{ m.message }}</p>
+        <button type="button" :disabled="busy === m.id" @click="remove('messages', m.id, null)">Done</button>
+      </li>
+    </ul>
+  </section>
+
   <section aria-labelledby="h-reviews">
     <h2 id="h-reviews">Review queue <span v-if="reviews.state === 'done'" class="count">{{ reviews.items.length }}</span></h2>
     <p class="muted">Findings readers sent to a person with knowledge. Kept 90 days; "Done" removes one from the queue.</p>
@@ -110,4 +140,5 @@ h2 { font-size: 1.15rem; font-weight: 500; margin: 0 0 6px; display: flex; align
 .status { color: var(--text); font-weight: 500; }
 .said { margin: 0; line-height: 1.7; font-size: 1.05rem; }
 .note { margin: 0; color: var(--muted); }
+.msg { white-space: pre-wrap; font-size: 1rem; }
 </style>

@@ -97,4 +97,4 @@ Dalil cards from the checked findings on a Leitner schedule (kept in the browser
 
 ## Admin (`/admin`)
 
-Sign in with `ADMIN_USER` and `ADMIN_PASSWORD`. The page lists the review queue and the submitted texts; an admin can clear a review or delete a text and everything built from it.
+Sign in with `ADMIN_USER` and `ADMIN_PASSWORD`. The page lists messages from the sources page (disputes, suggested sources, feedback), the review queue and the submitted texts. An admin can clear a message or a review, or delete a text and everything built from it. Every hadith page links to the dispute form with its key filled in.

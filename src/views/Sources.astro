@@ -1,6 +1,7 @@
 ---
 import AppShell from '../layouts/AppShell.astro';
 import { SITES, type SiteLang } from '../ask/sites';
+import ContactForm from '../components/ContactForm.vue';
 import { STRINGS, type Locale } from '../i18n/strings';
 
 // What Dalil reads from and what Ask may search, and how to tell us when something is wrong.
@@ -9,7 +10,6 @@ const { locale } = Astro.props;
 const t = STRINGS[locale];
 const s = t.sources;
 const EMAIL = 'ilhamsyahids@gmail.com';
-const mail = (subject: string) => `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}`;
 // Arabic sources first: the primary scholarly literature.
 const groups: SiteLang[] = ['ar', 'en', 'id'];
 ---
@@ -43,12 +43,8 @@ const groups: SiteLang[] = ['ar', 'en', 'id'];
     <section id="contact" class="contact">
       <h2>{s.contact}</h2>
       <p>{s.contactIntro}</p>
-      <p class="actions">
-        <a class="primary" href={mail(s.subjects.dispute)}>{s.dispute}</a>
-        <a href={mail(s.subjects.suggest)}>{s.suggest}</a>
-        <a href={mail(s.subjects.feedback)}>{s.feedback}</a>
-      </p>
-      <p class="muted email"><a href={`mailto:${EMAIL}`}>{EMAIL}</a></p>
+      <ContactForm client:load t={t} />
+      <p class="muted email">{s.form.orEmail} <a href={`mailto:${EMAIL}?subject=${encodeURIComponent(s.subjects.dispute)}`}>{EMAIL}</a></p>
     </section>
   </article>
 </AppShell>
@@ -72,10 +68,6 @@ const groups: SiteLang[] = ['ar', 'en', 'id'];
   .contact { margin-top: 48px; padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
   .contact h2 { margin-top: 0; }
   .contact > p { margin: 0 0 14px; max-width: 64ch; }
-  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
-  .actions a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--r-small); text-decoration: none; color: var(--text); }
-  .actions a:hover { border-color: var(--muted); }
-  .actions a.primary { background: var(--invert-bg); color: var(--invert-text); border-color: var(--invert-bg); }
   .email { margin: 4px 0 0 !important; font-size: 0.9rem; }
   @media (max-width: 560px) { .corpus { grid-template-columns: 1fr; gap: 2px; } .corpus dd { margin-bottom: 10px; } .contact { padding: 18px 16px; } }
 </style>

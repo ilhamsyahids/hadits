@@ -90,6 +90,21 @@ admin.delete('/reviews/:id', async (c) => {
   return c.json({ deleted: c.req.param('id') });
 });
 
+// Messages from the sources page (POST /v1/messages), newest first.
+admin.get('/messages', async (c) => {
+  const { keys } = await c.env.CACHE.list({ prefix: 'message:' });
+  const items = await Promise.all(keys.map(async (k) => {
+    const item = await c.env.CACHE.get<Record<string, unknown>>(k.name, 'json');
+    return item && { id: k.name.slice('message:'.length), ...item };
+  }));
+  return c.json(items.filter(Boolean).reverse());
+});
+
+admin.delete('/messages/:id', async (c) => {
+  await c.env.CACHE.delete(`message:${c.req.param('id')}`);
+  return c.json({ deleted: c.req.param('id') });
+});
+
 // Texts readers submitted (ids start with "u"), newest first. Older ones carry no list metadata and are read.
 type DocMeta = { title: string; lang: string; created: number; chars?: number };
 admin.get('/documents', async (c) => {
