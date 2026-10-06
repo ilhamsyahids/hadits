@@ -9,6 +9,7 @@ import { type Detector, verify } from '../verify/verify';
 import type { Doc, DocIndexItem } from '../lectures/doc';
 import { guessLang, parseText } from '../lectures/parse';
 import { translateDoc, translationKey } from '../lectures/translate';
+import { makeQuiz, quizKey } from '../lectures/quiz';
 import { buildReport, cachedReport, decisionsKey, reportKey, VERIFY_VERSION } from '../lectures/report';
 
 export const v1 = new Hono<AppEnv>();
@@ -143,6 +144,7 @@ v1.delete('/documents/:id', async (c) => {
     ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(reportKey(id, l))),
     c.env.CACHE.delete(decisionsKey(id)),
     ...(['en', 'ar', 'id'] as const).map((l) => c.env.CACHE.delete(translationKey(id, l))),
+    ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(quizKey(id, l))),
   ]);
   return c.json({ deleted: id });
 });
@@ -209,4 +211,20 @@ v1.get('/lectures/:id/translation', async (c) => {
   const ttl = doc.submitted ? Math.max(60, Math.floor((doc.submitted.expires - Date.now()) / 1000)) : undefined;
   c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(t), ttl ? { expirationTtl: ttl } : {}));
   return c.json(t);
+});
+
+// A quiz on a text (src/lectures/quiz.ts): content questions with the paragraph that answers them, and
+// "where is this from?" questions from the report's findings. Cached like reports.
+v1.get('/lectures/:id/quiz', async (c) => {
+  const id = c.req.param('id');
+  const lang = asLang(c.req.query('lang'));
+  const key = quizKey(id, lang);
+  const cached = await c.env.CACHE.get(key, 'json');
+  if (cached) return c.json(cached);
+  const doc = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
+  if (!doc) return c.json({ error: 'not_found' }, 404);
+  const quiz = await makeQuiz(c.env, doc, lang, (p) => c.executionCtx.waitUntil(p));
+  const ttl = doc.submitted ? Math.max(60, Math.floor((doc.submitted.expires - Date.now()) / 1000)) : undefined;
+  c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(quiz), ttl ? { expirationTtl: ttl } : {}));
+  return c.json(quiz);
 });
