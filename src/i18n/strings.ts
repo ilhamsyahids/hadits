@@ -9,8 +9,10 @@ export const dir = (l: Locale) => (l === 'ar' ? 'rtl' : 'ltr');
 export const localePath = (l: Locale, path = '/') => (l === 'en' ? path : `/ar${path}`);
 
 const en = {
-  brand: 'Dalil',
-  title: 'Dalil: check the ayat and hadith quoted in a lecture',
+  brand: 'MajelisNote Dalil',
+  brandMaker: 'MajelisNote',
+  brandName: 'Dalil',
+  title: 'MajelisNote Dalil: check the ayat and hadith quoted in a lecture',
   tagline: 'Is that really the hadith?',
   intro: 'Paste a quote, a reference such as "Bukhari 1" or "QS 2:255", or what you remember of its meaning. Dalil finds it in 317,000 hadith and the whole Quran and shows who graded it.',
   placeholder: 'Paste a quote or a reference',
@@ -181,10 +183,10 @@ const en = {
     open: 'Ask about this lecture',
   },
   glossary: { here: 'In this passage', loading: 'Explaining…', error: 'Could not explain it now.', aiNote: 'The explanation is written by AI from the passage.' },
-  share: { label: 'Share', copied: 'Link copied', report: 'Report on Dalil' },
+  share: { label: 'Share', copied: 'Link copied', report: 'Report on MajelisNote Dalil' },
   about: {
     nav: 'About',
-    site: 'Dalil checks the ayat and hadith quoted in lectures and articles against their sources, word for word, and shows who graded each hadith.',
+    site: 'MajelisNote Dalil checks the ayat and hadith quoted in lectures and articles against their sources, word for word, and shows who graded each hadith.',
     me: 'About me',
     bio: 'Ilham Syahid, an engineer at {haraj} and the founder of {majelisnote}.',
   },
@@ -207,7 +209,7 @@ const en = {
     dispute: 'Dispute a text or grade',
     feedback: 'Send feedback',
     suggest: 'Suggest a source',
-    subjects: { dispute: 'Dalil: dispute', feedback: 'Dalil: feedback', suggest: 'Dalil: suggest a source' },
+    subjects: { dispute: 'MajelisNote Dalil: dispute', feedback: 'MajelisNote Dalil: feedback', suggest: 'MajelisNote Dalil: suggest a source' },
   },
   browse: {
     quran: 'Quran',
@@ -252,8 +254,10 @@ const en = {
 };
 
 const ar: typeof en = {
-  brand: 'دليل',
-  title: 'دليل: تحقّق من الآيات والأحاديث المذكورة في الدرس',
+  brand: 'دليل MajelisNote',
+  brandMaker: 'MajelisNote',
+  brandName: 'دليل',
+  title: 'دليل MajelisNote: تحقّق من الآيات والأحاديث المذكورة في الدرس',
   tagline: 'هل هذا حديث حقًّا؟',
   intro: 'الصق نصًّا، أو إحالة مثل «البخاري 1» أو «البقرة 255»، أو ما تذكره من معناه. يبحث دليل في ٣١٧ ألف حديث والقرآن كاملًا ويبيّن من حكم عليه.',
   placeholder: 'الصق نصًّا أو إحالة',
@@ -424,10 +428,10 @@ const ar: typeof en = {
     open: 'اسأل عن هذا الدرس',
   },
   glossary: { here: 'في هذا الموضع', loading: 'جارٍ الشرح…', error: 'تعذّر الشرح الآن.', aiNote: 'الشرح من كتابة الذكاء الاصطناعي اعتمادًا على النص.' },
-  share: { label: 'مشاركة', copied: 'نُسخ الرابط', report: 'تقرير في دليل' },
+  share: { label: 'مشاركة', copied: 'نُسخ الرابط', report: 'تقرير في دليل MajelisNote' },
   about: {
     nav: 'عن الموقع',
-    site: 'يتحقق دليل من الآيات والأحاديث المذكورة في الدروس والمقالات بمقابلتها بمصادرها حرفًا بحرف، ويبيّن من حكم على كل حديث.',
+    site: 'يتحقق دليل MajelisNote من الآيات والأحاديث المذكورة في الدروس والمقالات بمقابلتها بمصادرها حرفًا بحرف، ويبيّن من حكم على كل حديث.',
     me: 'عنّي',
     bio: 'Ilham Syahid، مهندس في {haraj} ومؤسس {majelisnote}.',
   },
@@ -450,7 +454,7 @@ const ar: typeof en = {
     dispute: 'اعتراض على نص أو حكم',
     feedback: 'ملاحظات',
     suggest: 'اقتراح مصدر',
-    subjects: { dispute: 'دليل: اعتراض', feedback: 'دليل: ملاحظات', suggest: 'دليل: اقتراح مصدر' },
+    subjects: { dispute: 'دليل MajelisNote: اعتراض', feedback: 'دليل MajelisNote: ملاحظات', suggest: 'دليل MajelisNote: اقتراح مصدر' },
   },
   browse: {
     quran: 'القرآن',
