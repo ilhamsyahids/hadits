@@ -49,6 +49,18 @@ const saidPieces = computed(() => {
 });
 // A grade's tone, as on the chapter lists: sound grades green, weak ones amber, none grey.
 const gradeTone = (g: string | null) => (g === 'quran' || ['sahihayn', 'sahih', 'hasan', 'hasan_sahih', 'hasan_or_sahih', 'accepted'].includes(g ?? '') ? 'ok' : ['daif', 'mawdu', 'disputed'].includes(g ?? '') ? 'warn' : 'none');
+// Findings a scholar should look at go to the human review queue (POST /v1/reviews).
+const reviewable = computed(() => ['not_found_in_corpus', 'weak_or_disputed', 'misquote'].includes(props.v.status));
+const review = ref<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+async function sendReview() {
+  review.value = 'sending';
+  const res = await fetch('/v1/reviews', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ said: props.v.spoken, status: props.v.status, key: props.v.match?.key ?? null, page: location.href }),
+  }).catch(() => null);
+  review.value = res?.ok ? 'sent' : 'failed';
+}
 const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
 </script>
 
@@ -96,6 +108,10 @@ const long = computed(() => (props.v.match?.ar.matn.length ?? 0) > 420);
     <p v-if="v.citation && v.citation.agrees === false" class="citation warn-text">{{ t.citationMismatch }}: «{{ v.citation.said }}»</p>
     <p v-else-if="v.citation && v.citation.agrees" class="citation">{{ t.citationOk }}: «{{ v.citation.said }}»</p>
     <p v-if="v.status === 'not_found_in_corpus'" class="reason">{{ t.notFoundNote }}</p>
+    <p v-if="reviewable" class="review">
+      <button type="button" :disabled="review !== 'idle'" @click="sendReview">{{ review === 'sent' ? t.review.sent : review === 'failed' ? t.review.failed : t.review.send }}</button>
+      <span class="muted-small">{{ t.review.note }}</span>
+    </p>
 
     <section v-if="v.match && v.match.kind === 'hadith'" class="grades">
       <h3>{{ t.gradedBy }}</h3>
@@ -149,6 +165,10 @@ p { margin: 0; overflow-wrap: anywhere; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .translation { color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
 .chain { color: var(--subtle); font-size: 0.85rem; margin-top: 8px; }
+.review { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; }
+.review button { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: var(--r-small); padding: 6px 12px; min-height: 36px; font: inherit; font-size: 0.9rem; cursor: pointer; }
+.review button:disabled { color: var(--muted); cursor: default; }
+.muted-small { color: var(--subtle); font-size: 0.82rem; }
 .odd { background: color-mix(in srgb, var(--warn) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
 .closest a { text-underline-offset: 3px; }
 .changes { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }

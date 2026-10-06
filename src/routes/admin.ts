@@ -45,3 +45,10 @@ admin.post('/embed', async (c) => {
   const vectors = out.data.map((d) => (Array.isArray(d) ? d : d.embedding));
   return c.json({ model, dim: vectors[0]?.length ?? 0, vectors });
 });
+
+// The human review queue (POST /v1/reviews), newest first.
+admin.get('/reviews', async (c) => {
+  const { keys } = await c.env.CACHE.list({ prefix: 'review:' });
+  const items = await Promise.all(keys.map((k) => c.env.CACHE.get(k.name, 'json')));
+  return c.json(items.filter(Boolean).reverse());
+});
