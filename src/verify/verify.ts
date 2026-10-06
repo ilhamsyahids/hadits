@@ -173,6 +173,8 @@ export async function verify(
       degraded.push(`extract: ${String(e).slice(0, 120)}`);
     }
   }
+  // The model found nothing in a typed check: keep what the rules found (a bare reference such as "HR Bukhari 1").
+  if (latinQuote && !spans.length) spans = rules;
   if (latinQuote && !spans.length) {
     // Nothing recognised: treat the whole input as a meaning to look up.
     const text = lectureText(segments);
