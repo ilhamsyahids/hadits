@@ -36,7 +36,7 @@
     // Quote extraction (detector llm/hybrid): points at quotes in the transcript, never supplies their text
     "EXTRACT_MODEL": "gemini-3.5-flash-lite"
   },
-  // Secrets (wrangler secret put): GEMINI_API_KEY, ADMIN_TOKEN, CF_AIG_TOKEN (optional: gateway auth token)
+  // Secrets (wrangler secret put): GEMINI_API_KEY, ADMIN_TOKEN, ADMIN_USER, ADMIN_PASSWORD, CF_AIG_TOKEN (optional: gateway auth token)
   "durable_objects": { "bindings": [{ "name": "AskAgent", "class_name": "AskAgent" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AskAgent"] }],
   "observability": { "enabled": true }
