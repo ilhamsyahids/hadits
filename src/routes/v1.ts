@@ -8,6 +8,7 @@ import { search } from '../search/search';
 import type { Segment } from '../verify/detect';
 import { type Detector, verify } from '../verify/verify';
 import type { Doc, DocIndexItem } from '../lectures/doc';
+import { forgetDocument } from '../lectures/forget';
 import { guessLang, parseText } from '../lectures/parse';
 import { translateDoc, translationKey } from '../lectures/translate';
 import { makeQuiz, quizKey } from '../lectures/quiz';
@@ -127,7 +128,7 @@ v1.post('/documents', async (c) => {
     source: null, submitted: { created, expires: created + DOC_TTL * 1000, token_hash: await hash(token), text_hash: textHash }, segments: parsed.segments,
   };
   await Promise.all([
-    c.env.CACHE.put(`lecture:${id}`, JSON.stringify(doc), { expirationTtl: DOC_TTL }),
+    c.env.CACHE.put(`lecture:${id}`, JSON.stringify(doc), { expirationTtl: DOC_TTL, metadata: { title, lang: doc.lang, created, chars: text.length } }),
     c.env.CACHE.put(`doc:hash:${textHash}`, JSON.stringify({ id }), { expirationTtl: DOC_TTL }),
   ]);
   return c.json({ id, token, title, expires: doc.submitted!.expires }, 201);
@@ -139,19 +140,12 @@ v1.delete('/documents/:id', async (c) => {
   const doc = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
   if (!doc?.submitted) return c.json({ error: 'not_found' }, 404);
   if (!token || (await hash(token)) !== doc.submitted.token_hash) return c.json({ error: 'forbidden' }, 403);
-  await Promise.all([
-    c.env.CACHE.delete(`lecture:${id}`),
-    c.env.CACHE.delete(`doc:hash:${doc.submitted.text_hash}`),
-    ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(reportKey(id, l))),
-    c.env.CACHE.delete(decisionsKey(id)),
-    ...(['en', 'ar', 'id'] as const).map((l) => c.env.CACHE.delete(translationKey(id, l))),
-    ...(['en', 'ar'] as const).map((l) => c.env.CACHE.delete(quizKey(id, l))),
-  ]);
+  await forgetDocument(c.env.CACHE, doc);
   return c.json({ deleted: id });
 });
 
 // Human review: a reader sends a finding that needs a scholar ("not found", weak or disputed, a misquote) to the
-// reviewer's queue. Kept 90 days in KV; read with GET /admin/reviews.
+// reviewer's queue. Kept 90 days in KV; read on the admin page (/admin).
 const REVIEW_TTL = 60 * 60 * 24 * 90;
 v1.post('/reviews', async (c) => {
   const b = await c.req.json<{ said?: string; status?: string; key?: string | null; page?: string; note?: string }>().catch(() => ({}) as Record<string, never>);

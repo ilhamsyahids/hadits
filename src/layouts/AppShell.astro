@@ -5,15 +5,15 @@ import TermPopover from '../components/TermPopover.vue';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
 // Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
-interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'quran' | 'hadith' | 'lectures' | 'sources' | 'about' | null }
-const { title, description, locale, path, active = null } = Astro.props;
+interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'quran' | 'hadith' | 'lectures' | 'sources' | 'about' | null; noindex?: boolean }
+const { title, description, locale, path, active = null, noindex = false } = Astro.props;
 const t = STRINGS[locale];
 type Item = { id: string; title: string; lang: string; duration: number };
 const lectures = (await env.CACHE.get<Item[]>('lectures:index', 'json').catch(() => null)) ?? [];
 const other = locale === 'en' ? `/ar${path === '/' ? '/' : path}` : path;
 const href = (p: string) => localePath(locale, p);
 ---
-<Base title={title} description={description} locale={locale} path={path}>
+<Base title={title} description={description} locale={locale} path={path} noindex={noindex}>
   <div class="shell">
     <aside class="side" id="side" aria-label={t.nav.menu}>
       <div class="side-head">
@@ -82,7 +82,7 @@ const href = (p: string) => localePath(locale, p);
         </button>
         <a class="brand only-mobile panel-brand" href={href('/')}><svg class="logo" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M11.8 9 Q17.8 11.5 20.4 17.2 Q22.2 22.8 16.6 23 L9.8 23" /></svg><span class="brand-text"><span class="maker">{t.brandMaker}</span><span class="name"><span class:list={["word", { naskh: locale === 'ar' }]}>{t.brandName}</span>{locale === 'en' && <span class="naskh ar-word" lang="ar">دليل</span>}</span></span></a>
         <div class="top-actions">
-          <a class="text-btn" id="lang-switch" href={other} hreflang={locale === 'en' ? 'ar' : 'en'} lang={locale === 'en' ? 'ar' : 'en'} data-lang={locale === 'en' ? 'ar' : 'en'} aria-label={t.languageLabel}>{t.language}</a>
+          {!noindex && <a class="text-btn" id="lang-switch" href={other} hreflang={locale === 'en' ? 'ar' : 'en'} lang={locale === 'en' ? 'ar' : 'en'} data-lang={locale === 'en' ? 'ar' : 'en'} aria-label={t.languageLabel}>{t.language}</a>}
           <button class="icon-btn" type="button" id="theme" data-dark={t.theme.dark} data-light={t.theme.light} aria-label={t.theme.light}>
             <svg class="sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6" fill="none" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
             <svg class="moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" /></svg>

@@ -1,0 +1,59 @@
+---
+import { env } from 'cloudflare:workers';
+import AppShell from '../layouts/AppShell.astro';
+import AdminPanel from '../components/AdminPanel.vue';
+import { adminEnabled, hasSession } from '../lib/session';
+
+// The maintainer's page: the human review queue and the texts readers submitted. Signed in with ADMIN_USER and
+// ADMIN_PASSWORD (POST /admin/login); the data comes from /admin/* with the session cookie. English only.
+const enabled = adminEnabled(env);
+const signedIn = enabled && (await hasSession(env, Astro.request.headers.get('cookie')));
+const error = Astro.url.searchParams.get('error');
+const ERRORS: Record<string, string> = {
+  login: 'Wrong username or password.',
+  limit: 'Too many tries from this address. Try again in an hour.',
+};
+Astro.response.headers.set('cache-control', 'no-store');
+---
+<AppShell title="Admin · MajelisNote Dalil" locale="en" path="/admin" noindex>
+  <section class="page">
+    {signedIn ? (
+      <>
+        <header class="head">
+          <h1>Admin</h1>
+          <form method="post" action="/admin/logout"><button class="plain" type="submit">Sign out</button></form>
+        </header>
+        <AdminPanel client:load />
+      </>
+    ) : (
+      <>
+        <h1>Admin</h1>
+        {enabled ? (
+          <form class="login" method="post" action="/admin/login">
+            <label>Username <input name="user" type="text" autocomplete="username" required /></label>
+            <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+            {error && ERRORS[error] && <p class="error" role="alert">{ERRORS[error]}</p>}
+            <button type="submit">Sign in</button>
+          </form>
+        ) : (
+          <p class="muted">Sign-in is off: set ADMIN_USER and ADMIN_PASSWORD.</p>
+        )}
+      </>
+    )}
+  </section>
+</AppShell>
+
+<style>
+  .page { max-width: 960px; margin: 0 auto; padding-top: 24px; padding-bottom: 48px; }
+  h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 16px; letter-spacing: -0.01em; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .login { display: flex; flex-direction: column; gap: 14px; max-width: 360px; }
+  label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 0.92rem; }
+  input { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: var(--r-small); background: var(--surface); color: var(--text); font: inherit; padding: 0 14px; }
+  input:focus { outline: none; border-color: var(--muted); }
+  .login button { align-self: flex-start; border: 0; border-radius: var(--r-small); background: var(--invert-bg); color: var(--invert-text); font: inherit; font-weight: 500; padding: 0 20px; min-height: 44px; cursor: pointer; }
+  .plain { border: 1px solid var(--line); background: none; color: var(--text); border-radius: var(--r-small); font: inherit; padding: 0 14px; min-height: 40px; cursor: pointer; }
+  .plain:hover { border-color: var(--muted); }
+  .error { color: var(--warn); margin: 0; }
+  .muted { color: var(--muted); }
+</style>

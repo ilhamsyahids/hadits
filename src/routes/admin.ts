@@ -1,20 +1,49 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../env';
+import type { Doc } from '../lectures/doc';
+import { forgetDocument } from '../lectures/forget';
+import { checkLogin, clearedCookie, hasSession, sameSecret, sessionCookie } from '../lib/session';
 
-// Write side for offline jobs (tools/embed_batch.py on the VPS). Bearer ADMIN_TOKEN; never linked from the UI.
+// /admin/*: the admin page's data (a session cookie from ADMIN_USER / ADMIN_PASSWORD, see src/pages/admin.astro)
+// and the write side for offline jobs (tools/embed_batch.py on the VPS, Bearer ADMIN_TOKEN).
 export const admin = new Hono<AppEnv>();
+const LOGIN_TRIES_PER_HOUR = 10;
 
 admin.use('*', async (c, next) => {
+  const path = new URL(c.req.url).pathname.replace(/\/$/, '');
+  // The page itself (Astro) checks the session; signing in and out needs none.
+  if ((path === '/admin' && c.req.method === 'GET') || path === '/admin/login' || path === '/admin/logout') return next();
   const token = c.req.header('authorization')?.replace(/^Bearer /, '') ?? '';
-  if (!c.env.ADMIN_TOKEN || !(await sameSecret(token, c.env.ADMIN_TOKEN))) return c.json({ error: 'unauthorized' }, 401);
-  await next();
+  if (token && c.env.ADMIN_TOKEN && (await sameSecret(token, c.env.ADMIN_TOKEN))) return next();
+  if (await hasSession(c.env, c.req.header('cookie'))) {
+    // The cookie is SameSite=Strict; changes must also come from this site's own page.
+    const origin = c.req.header('origin');
+    if (c.req.method !== 'GET' && origin !== new URL(c.req.url).origin) return c.json({ error: 'forbidden' }, 403);
+    return next();
+  }
+  return c.json({ error: 'unauthorized' }, 401);
 });
 
-async function sameSecret(a: string, b: string): Promise<boolean> {
-  const enc = new TextEncoder();
-  const [ha, hb] = await Promise.all([crypto.subtle.digest('SHA-256', enc.encode(a)), crypto.subtle.digest('SHA-256', enc.encode(b))]);
-  return crypto.subtle.timingSafeEqual(ha, hb);
-}
+// The sign-in form posts here; failed tries are limited per address.
+admin.post('/login', async (c) => {
+  const secure = new URL(c.req.url).protocol === 'https:';
+  const form = await c.req.parseBody().catch(() => ({}) as Record<string, string>);
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = `rl:login:${ip}:${Math.floor(Date.now() / 3_600_000)}`;
+  const tries = Number((await c.env.CACHE.get(rl)) ?? 0);
+  if (tries >= LOGIN_TRIES_PER_HOUR) return c.redirect('/admin?error=limit', 303);
+  if (!(await checkLogin(c.env, String(form.user ?? ''), String(form.password ?? '')))) {
+    await c.env.CACHE.put(rl, String(tries + 1), { expirationTtl: 7200 });
+    return c.redirect('/admin?error=login', 303);
+  }
+  c.header('set-cookie', await sessionCookie(c.env, secure));
+  return c.redirect('/admin', 303);
+});
+
+admin.post('/logout', (c) => {
+  c.header('set-cookie', clearedCookie(new URL(c.req.url).protocol === 'https:'));
+  return c.redirect('/admin', 303);
+});
 
 type VectorIn = { id: string; values: number[]; metadata?: Record<string, string> };
 
@@ -46,9 +75,40 @@ admin.post('/embed', async (c) => {
   return c.json({ model, dim: vectors[0]?.length ?? 0, vectors });
 });
 
-// The human review queue (POST /v1/reviews), newest first.
+// The human review queue (POST /v1/reviews), newest first. `id` is the KV key without its prefix.
 admin.get('/reviews', async (c) => {
   const { keys } = await c.env.CACHE.list({ prefix: 'review:' });
-  const items = await Promise.all(keys.map((k) => c.env.CACHE.get(k.name, 'json')));
+  const items = await Promise.all(keys.map(async (k) => {
+    const item = await c.env.CACHE.get<Record<string, unknown>>(k.name, 'json');
+    return item && { id: k.name.slice('review:'.length), ...item };
+  }));
   return c.json(items.filter(Boolean).reverse());
+});
+
+admin.delete('/reviews/:id', async (c) => {
+  await c.env.CACHE.delete(`review:${c.req.param('id')}`);
+  return c.json({ deleted: c.req.param('id') });
+});
+
+// Texts readers submitted (ids start with "u"), newest first. Older ones carry no list metadata and are read.
+type DocMeta = { title: string; lang: string; created: number; chars?: number };
+admin.get('/documents', async (c) => {
+  const { keys } = await c.env.CACHE.list<DocMeta>({ prefix: 'lecture:u', limit: 1000 });
+  const items = await Promise.all(keys.map(async (k) => {
+    let meta = k.metadata;
+    if (!meta) {
+      const doc = await c.env.CACHE.get<Doc>(k.name, 'json');
+      if (!doc?.submitted) return null;
+      meta = { title: doc.title, lang: doc.lang, created: doc.submitted.created, chars: doc.segments.reduce((n, s) => n + s.text.length, 0) };
+    }
+    return { id: k.name.slice('lecture:'.length), ...meta, expires: k.expiration ? k.expiration * 1000 : null };
+  }));
+  return c.json(items.filter(Boolean).sort((a, b) => b!.created - a!.created));
+});
+
+admin.delete('/documents/:id', async (c) => {
+  const doc = await c.env.CACHE.get<Doc>(`lecture:${c.req.param('id')}`, 'json');
+  if (!doc?.submitted) return c.json({ error: 'not_found' }, 404);
+  await forgetDocument(c.env.CACHE, doc);
+  return c.json({ deleted: doc.id });
 });

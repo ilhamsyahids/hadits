@@ -1,8 +1,9 @@
 ---
 import { dir, type Locale } from '../i18n/strings';
 
-interface Props { title: string; description?: string; locale: Locale; path?: string }
-const { title, description = '', locale, path = '/' } = Astro.props;
+// noindex: pages kept out of search engines and with no Arabic twin (the admin page).
+interface Props { title: string; description?: string; locale: Locale; path?: string; noindex?: boolean }
+const { title, description = '', locale, path = '/', noindex = false } = Astro.props;
 const en = `https://hadits.net${path}`;
 const ar = `https://hadits.net/ar${path}`;
 ---
@@ -12,8 +13,10 @@ const ar = `https://hadits.net/ar${path}`;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <link rel="alternate" hreflang="en" href={en} />
-    <link rel="alternate" hreflang="ar" href={ar} />
+    {noindex ? <meta name="robots" content="noindex, nofollow" /> : (<>
+      <link rel="alternate" hreflang="en" href={en} />
+      <link rel="alternate" hreflang="ar" href={ar} />
+    </>)}
     <title>{title}</title>
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
