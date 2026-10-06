@@ -9,6 +9,8 @@ import { termById, type Term } from '../lib/glossary';
 //     this passage (AI, /v1/explain, cached), and "Ask about this term";
 //   - "Ask about this" on any text the reader selects. Both fill Ask's box without sending: the panel beside a
 //     lecture report or the Ask page itself (event 'ask-prefill'), otherwise the Ask page (?q=).
+// Two root elements (the selection button and the popover), so Astro's scoping attribute is not passed down.
+defineOptions({ inheritAttrs: false });
 const props = defineProps<{ t: Strings; lang: 'en' | 'ar' }>();
 const g = props.t.glossary;
 const base = props.lang === 'ar' ? '/ar' : '';
@@ -83,7 +85,10 @@ const onSelect = () => {
     return;
   }
   const r = sel.getRangeAt(0).getBoundingClientRect();
-  pick.value = { text, ...place(r, false) };
+  // On touch screens the phone's own copy menu sits above a selection, so the button goes below it, past the handles.
+  const touch = matchMedia('(pointer: coarse)').matches;
+  const at = place(r, touch);
+  pick.value = { text, ...at, top: touch ? at.top + 20 : at.top };
 };
 const onKey = (e: KeyboardEvent) => {
   if (e.key !== 'Escape') return;
