@@ -24,6 +24,16 @@ const examples = computed(() => [
   { label: props.t.exampleLabels.kursi, text: 'QS 2:255' },
 ]);
 
+// An example fills the box; the reader checks it (or edits it first).
+const box = ref<HTMLTextAreaElement | null>(null);
+function fill(q: string) {
+  text.value = q;
+  nextTick(() => {
+    box.value?.focus();
+    box.value?.setSelectionRange(q.length, q.length);
+  });
+}
+
 async function check(input?: string) {
   if (input) text.value = input;
   const q = text.value.trim();
@@ -61,12 +71,12 @@ onMounted(() => {
     <p class="intro">{{ t.intro }}</p>
     <form @submit.prevent="check()">
       <label class="sr-only" for="q">{{ t.placeholder }}</label>
-      <textarea id="q" v-model="text" :placeholder="t.placeholder" rows="1" dir="auto" @keydown.enter.exact.prevent="check()" />
+      <textarea id="q" ref="box" v-model="text" :placeholder="t.placeholder" rows="1" dir="auto" @keydown.enter.exact.prevent="check()" />
       <button type="submit" :disabled="!text.trim() || state === 'loading'">{{ state === 'loading' ? t.checking : t.check }}</button>
     </form>
     <p v-if="whole" class="whole">{{ t.submit.longHint }}</p>
     <div class="chips" :aria-label="t.examples">
-      <button v-for="e in examples" :key="e.text" type="button" @click="check(e.text)">{{ e.label }}</button>
+      <button v-for="e in examples" :key="e.text" type="button" @click="fill(e.text)">{{ e.label }}</button>
     </div>
     <p class="more"><a :href="`${base}/lectures`">{{ t.submit.heading }}</a></p>
   </section>
