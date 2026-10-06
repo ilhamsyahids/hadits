@@ -75,6 +75,16 @@ const input = ref('');
 const scroller = ref<HTMLElement | null>(null);
 const busy = computed(() => chat.status.value === 'submitted' || chat.status.value === 'streaming');
 
+// An example fills the box; the reader edits or sends it.
+const inputEl = ref<HTMLTextAreaElement | null>(null);
+function fill(text: string) {
+  input.value = text;
+  nextTick(() => {
+    inputEl.value?.focus();
+    inputEl.value?.setSelectionRange(text.length, text.length);
+  });
+}
+
 function send(text?: string) {
   const q = (text ?? input.value).trim();
   if (!q || busy.value) return;
@@ -253,6 +263,9 @@ function reset() {
             <span class="spinner" aria-hidden="true"></span>{{ progress(m.parts as Part[]) }}
           </p>
           <div :ref="(el) => (bodies[m.id] = el as HTMLElement)" class="answer" dir="auto" v-html="render(answerText(m.parts as Part[]))"></div>
+          <p v-if="!busy && !answerText(m.parts as Part[]).trim() && m.id === chat.messages.value.at(-1)?.id" class="error" role="alert">
+            {{ a.emptyAnswer }} <button type="button" class="link" @click="retry">{{ t.retry }}</button>
+          </p>
           <details v-if="consulted(m.parts as Part[]).length" class="sources">
             <summary>{{ a.sources }} ({{ consulted(m.parts as Part[]).length }})</summary>
             <ul>
@@ -272,13 +285,13 @@ function reset() {
 
     <form class="composer" @submit.prevent="send()">
       <label class="sr-only" for="ask-input">{{ a.placeholder }}</label>
-      <textarea id="ask-input" v-model="input" :placeholder="a.placeholder" rows="1" dir="auto" @keydown.enter.exact.prevent="send()" />
+      <textarea id="ask-input" ref="inputEl" v-model="input" :placeholder="a.placeholder" rows="1" dir="auto" @keydown.enter.exact.prevent="send()" />
       <button v-if="busy" type="button" class="secondary" @click="chat.stop()">{{ a.stop }}</button>
       <button v-else type="submit" :disabled="!input.trim()">{{ a.send }}</button>
     </form>
     <div class="chips">
       <template v-if="!chat.messages.value.length">
-        <button v-for="e in (lectureTitle ? (lectureKind === 'lecture' ? a.lectureExamples : a.articleExamples) : a.examples)" :key="e" type="button" @click="send(e)">{{ e }}</button>
+        <button v-for="e in (lectureTitle ? (lectureKind === 'lecture' ? a.lectureExamples : a.articleExamples) : a.examples)" :key="e" type="button" @click="fill(e)">{{ e }}</button>
       </template>
       <button v-else type="button" @click="reset">{{ a.newChat }}</button>
     </div>

@@ -10,7 +10,8 @@ const t = STRINGS[locale];
 const s = t.sources;
 const EMAIL = 'ilhamsyahids@gmail.com';
 const mail = (subject: string) => `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}`;
-const groups: SiteLang[] = locale === 'ar' ? ['ar', 'en', 'id'] : ['en', 'ar', 'id'];
+// Arabic sources first: the primary scholarly literature.
+const groups: SiteLang[] = ['ar', 'en', 'id'];
 ---
 <AppShell title={`${s.nav} · ${t.brand}`} description={s.intro} locale={locale} path="/sources" active="sources">
   <article class="page">
