@@ -32,6 +32,22 @@ const describe = (e: unknown) => {
 };
 const MAX_TURNS = 30;
 
+/** The reader's last question, as text. */
+const lastQuestion = (messages: UIMessage[]) =>
+  [...messages].reverse().find((m) => m.role === 'user')?.parts.map((p) => (p.type === 'text' ? p.text : '')).join(' ') ?? '';
+
+/** What the tools returned this turn, flattened to text for a writing step that has no tools. */
+function toolResults(messages: { role: string; content: unknown }[]) {
+  const out: string[] = [];
+  for (const m of messages) {
+    if (m.role !== 'tool' || !Array.isArray(m.content)) continue;
+    for (const part of m.content as { type: string; toolName?: string; output?: { value?: unknown } }[]) {
+      if (part.type === 'tool-result') out.push(`${part.toolName}: ${JSON.stringify(part.output?.value ?? part.output)}`);
+    }
+  }
+  return out.join('\n').slice(0, 40_000);
+}
+
 export class AskAgent extends AIChatAgent<Bindings> {
   maxPersistedMessages = 80;
 
@@ -70,9 +86,9 @@ export class AskAgent extends AIChatAgent<Bindings> {
           messages: history,
           tools: makeTools({ env, writer, seen, lang, lectureId: lecture ? lectureId : null }),
           stopWhen: isStepCount(MAX_STEPS),
-          // Last step: no tools at all. With tools declared but disabled, Gemini can return an empty text block.
-          prepareStep: ({ stepNumber }) =>
-            stepNumber === 0 ? { toolChoice: 'required' as const } : stepNumber === MAX_STEPS - 1 ? { toolChoice: 'none' as const, activeTools: [] } : {},
+          // Last step: tools stay declared but calling is off at the API (function calling mode NONE). Removing them
+          // instead made Gemini call a tool that no longer existed (AI_NoSuchToolError) and end without text.
+          prepareStep: ({ stepNumber }) => (stepNumber === 0 ? { toolChoice: 'required' as const } : stepNumber === MAX_STEPS - 1 ? { toolChoice: 'none' as const } : {}),
           providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
           streamRetries: STREAM_RETRIES,
           abortSignal: options?.abortSignal,
@@ -80,10 +96,11 @@ export class AskAgent extends AIChatAgent<Bindings> {
         writer.merge(toUIMessageStream({ stream: result.stream, sendFinish: false, onError: describe }));
         if (!(await result.text).trim()) {
           // The searches ran but no answer was written: one more step, without tools, from what they returned.
+          // The results go in as plain text: with tool calls in the history, Gemini keeps trying to call tools.
           const answer = streamText({
             model: google(env.LLM_MODEL),
-            instructions: `${system}\n\nThe searches are done. Write the answer now from the tool results above, following every rule; do not call tools.`,
-            messages: [...history, ...(await result.responseMessages)],
+            instructions: `${system}\n\nThe searches are done. Write the answer now from the search results below, following every rule. You have no tools.`,
+            messages: [{ role: 'user', content: `Question: ${lastQuestion(this.messages)}\n\nSearch results (JSON, ids to use in tags and citations):\n${toolResults(await result.responseMessages)}` }],
             providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } },
             streamRetries: STREAM_RETRIES,
             abortSignal: options?.abortSignal,
