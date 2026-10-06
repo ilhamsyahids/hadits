@@ -16,6 +16,11 @@ export type AskData = {
 export type AskMessage = UIMessage<unknown, AskData>;
 
 const MAX_STEPS = 4;
+const EMPTY_ANSWER = {
+  en: 'The sources were found (listed below), but no answer was written. Please ask again or rephrase the question.',
+  ar: 'وُجدت المصادر (مذكورة أدناه)، لكن لم تُكتب إجابة. أعد السؤال أو صِغه بطريقة أخرى.',
+  id: 'Sumber ditemukan (tercantum di bawah), tetapi jawaban tidak tertulis. Silakan tanya lagi atau ubah pertanyaannya.',
+} as const;
 // Provider errors after streaming started (overload, a dropped connection) are retried before the reader sees them.
 const STREAM_RETRIES = 2;
 
@@ -84,7 +89,12 @@ export class AskAgent extends AIChatAgent<Bindings> {
             abortSignal: options?.abortSignal,
           });
           writer.merge(toUIMessageStream({ stream: answer.stream, sendStart: false, sendFinish: false, onError: describe }));
-          await answer.text;
+          if (!(await answer.text).trim()) {
+            // Still nothing: say so plainly rather than end the turn with sources and no words.
+            writer.write({ type: 'text-start', id: 'empty' });
+            writer.write({ type: 'text-delta', id: 'empty', delta: EMPTY_ANSWER[lang] });
+            writer.write({ type: 'text-end', id: 'empty' });
+          }
         }
         // Everything the tools returned this turn: the page hides citations and scripture tags outside this set.
         writer.write({ type: 'data-citations', data: { ids: [...seen] } });
