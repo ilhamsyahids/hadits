@@ -23,7 +23,7 @@ const ar = `https://hadits.net/ar${path}`;
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#121212" />
-    <!-- Theme before paint: the reader's saved choice, otherwise dark (DESIGN.md). -->
+    <!-- Theme before paint: the reader's saved choice, otherwise dark (docs/design.md). -->
     <script is:inline>
       try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
       try { if (localStorage.getItem('sidebar') === 'collapsed') document.documentElement.dataset.sidebar = 'collapsed'; } catch {}
@@ -37,7 +37,7 @@ const ar = `https://hadits.net/ar${path}`;
     <style is:global>
       /* KFGQPC HAFS Uthmanic Script (King Fahd Complex), self-hosted: the Quran in its own script. */
       @font-face { font-family: 'KFGQPC HAFS Uthmanic Script'; src: url('/fonts/UthmanicHafs.woff2') format('woff2'); font-display: swap; }
-      /* Neutral chrome (see DESIGN.md); status colours are the only colours, and they mean something. */
+      /* Neutral chrome (see docs/design.md); status colours are the only colours, and they mean something. */
       :root, :root[data-theme='dark'] {
         --frame: #181818; --panel: #0e0e0e; --surface: #1c1c1c; --surface-2: #242424; --line: #2c2c2c;
         --text: #f1f0ec; --muted: #a3a09a; --subtle: #8a877f; --invert-bg: #f1f0ec; --invert-text: #121212;
