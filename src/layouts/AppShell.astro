@@ -4,7 +4,7 @@ import Base from './Base.astro';
 import TermPopover from '../components/TermPopover.vue';
 import { localePath, STRINGS, type Locale } from '../i18n/strings';
 
-// Sidebar + inset panel (see DESIGN.md). Every nav item points at a page that exists.
+// Sidebar + inset panel (see docs/design.md). Every nav item points at a page that exists.
 interface Props { title: string; description?: string; locale: Locale; path: string; active?: 'check' | 'ask' | 'quran' | 'hadith' | 'lectures' | 'sources' | 'about' | null; noindex?: boolean }
 const { title, description, locale, path, active = null, noindex = false } = Astro.props;
 const t = STRINGS[locale];

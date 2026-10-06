@@ -4,7 +4,7 @@
 !.env.example
 .dev.vars
 
-# data is never committed (see DATA.md)
+# data is never committed (see docs/data.md)
 data/
 *.db
 *.sqlite
@@ -25,3 +25,8 @@ __pycache__/
 
 # the small redistributable sample corpus is committed (tools/build_sample.py)
 !sample/*.sql
+
+# evaluation reports written by eval/run.ts and eval/ask_eval.ts (summary in docs/evaluation.md)
+/EVALUATION*.md
+# local logs
+/logs.json
