@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { asLang, family, present, resolveKey } from '../corpus/units';
 import { generateJSON } from '../lib/gemini';
 import { termById } from '../lib/glossary';
+import { findTerms } from '../lib/terms';
 import type { AppEnv } from '../env';
 import { search } from '../search/search';
 import type { Segment } from '../verify/detect';
@@ -172,8 +173,11 @@ v1.post('/reviews', async (c) => {
 const EXPLAIN_SYSTEM = `You explain one Islamic term to a reader, as it is used in the passage given. Write {LANGUAGE}, two or three short sentences, plain words.
 Say what the term means and what it means here in this passage. Do not quote the Quran or hadith, do not give a ruling, and do not add anything the passage does not support.`;
 v1.post('/explain', async (c) => {
-  const b = await c.req.json<{ term?: string; context?: string; lang?: string }>().catch(() => ({}) as Record<string, never>);
-  const term = termById(String(b.term ?? ''));
+  const b = await c.req.json<{ term?: string; label?: string; gloss?: string; context?: string; lang?: string }>().catch(() => ({}) as Record<string, never>);
+  const curated = termById(String(b.term ?? ''));
+  // A term the model found in the text (POST /v1/terms) comes with its own label and one-line meaning.
+  const label = typeof b.label === 'string' ? b.label.trim().slice(0, 60) : '';
+  const term = curated ?? (label ? { id: `x:${label}`, forms: [label], ar: '', en: typeof b.gloss === 'string' ? b.gloss.slice(0, 240) : '' } : null);
   const context = typeof b.context === 'string' ? b.context.slice(0, 1500) : '';
   if (!term || !context) return c.json({ error: 'term and context are required' }, 400);
   const lang = asLang(b.lang);
@@ -189,7 +193,7 @@ v1.post('/explain', async (c) => {
   const { data } = await generateJSON<{ text: string }>(c.env, {
     model: c.env.LLM_MODEL_LITE,
     system: EXPLAIN_SYSTEM.replace('{LANGUAGE}', language),
-    prompt: `Term: ${term.forms[0]} (${term.ar}): ${term.en}\nPassage: ${context}`,
+    prompt: `Term: ${term.forms[0]}${term.ar ? ` (${term.ar})` : ''}: ${term.en}\nPassage: ${context}`,
     schema: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] },
     thinking: 'minimal',
   });
@@ -227,4 +231,38 @@ v1.get('/lectures/:id/quiz', async (c) => {
   const ttl = doc.submitted ? Math.max(60, Math.floor((doc.submitted.expires - Date.now()) / 1000)) : undefined;
   c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(quiz), ttl ? { expirationTtl: ttl } : {}));
   return c.json(quiz);
+});
+
+// Glossary terms the model finds in a text (src/lib/terms.ts): for a lecture or article, and for any short text
+// such as an Ask answer. Cached per text and language.
+v1.get('/lectures/:id/terms', async (c) => {
+  const id = c.req.param('id');
+  const lang = asLang(c.req.query('lang'));
+  const key = `terms:v1:${id}:${lang}`;
+  const cached = await c.env.CACHE.get(key, 'json');
+  if (cached) return c.json(cached);
+  const doc = await c.env.CACHE.get<Doc>(`lecture:${id}`, 'json');
+  if (!doc) return c.json({ error: 'not_found' }, 404);
+  const terms = await findTerms(c.env, doc.segments.map((s) => s.text).join('\n'), lang);
+  const ttl = doc.submitted ? Math.max(60, Math.floor((doc.submitted.expires - Date.now()) / 1000)) : undefined;
+  c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify({ terms }), ttl ? { expirationTtl: ttl } : {}));
+  return c.json({ terms });
+});
+
+v1.post('/terms', async (c) => {
+  const b = await c.req.json<{ text?: string; lang?: string }>().catch(() => ({}) as Record<string, never>);
+  const text = typeof b.text === 'string' ? b.text.slice(0, 8000) : '';
+  if (text.length < 40) return c.json({ terms: [] });
+  const lang = asLang(b.lang);
+  const key = `terms:text:${await hash(JSON.stringify([text, lang]))}`;
+  const cached = await c.env.CACHE.get(key, 'json');
+  if (cached) return c.json(cached);
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = `rl:terms:${ip}:${Math.floor(Date.now() / 3_600_000)}`;
+  const n = Number((await c.env.CACHE.get(rl)) ?? 0);
+  if (n >= 120) return c.json({ terms: [] });
+  c.executionCtx.waitUntil(c.env.CACHE.put(rl, String(n + 1), { expirationTtl: 7200 }));
+  const out = { terms: await findTerms(c.env, text, lang) };
+  c.executionCtx.waitUntil(c.env.CACHE.put(key, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * 30 }));
+  return c.json(out);
 });

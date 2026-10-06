@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Strings } from '../i18n/strings';
-import { termPieces, type TermPiece } from '../lib/glossary';
+import { extraTerm, termPieces, type Term, type TermPiece } from '../lib/glossary';
 import LearnView from './LearnView.vue';
 import TranslationView from './TranslationView.vue';
 import VerdictCard, { type Verdict } from './VerdictCard.vue';
@@ -114,9 +114,15 @@ function showInText(i: number) {
 // The full text in paragraphs, split into plain pieces and marked quotes. Offsets follow lectureText() on the
 // server: each segment's text joined with a newline.
 type Piece = { text: string; ref?: Verdict; terms?: TermPiece[] };
-// Islamic terms in a Latin-script text are tagged for the glossary (where each first appears).
-const tagTerms = props.textLang !== 'ar';
-const plain = (text: string, seen: Set<string>): Piece => (tagTerms ? { text, terms: termPieces(text, seen) } : { text });
+// Islamic terms are tagged for the glossary where each first appears: the curated list in Latin-script text, and
+// the terms the model found in this text (GET /v1/lectures/:id/terms) in any script.
+const curatedTerms = props.textLang !== 'ar';
+const found = ref<Term[]>([]);
+onMounted(async () => {
+  const res = await fetch(`/v1/lectures/${props.id}/terms?lang=${props.lang}`).catch(() => null);
+  if (res?.ok) found.value = ((await res.json()) as { terms: { form: string; gloss: string }[] }).terms.map((t) => extraTerm(t.form, t.gloss));
+});
+const plain = (text: string, seen: Set<string>): Piece => ({ text, terms: termPieces(text, seen, found.value, curatedTerms) });
 const paragraphs = computed(() => {
   const refs = (report.value?.refs ?? []).filter((r) => r.a != null && r.b != null);
   let from = 0;
@@ -229,7 +235,7 @@ const filters = computed<{ id: Filter; label: string }[]>(() => [
           :class="['hl', tone(x.ref.status)]"
           :title="`${x.ref.match?.reference ?? ''} · ${t.status[x.ref.status]}`"
           @click.prevent="jump(x.ref.id)"
-        >{{ x.text }}</a><template v-else-if="x.terms"><template v-for="(y, j) in x.terms" :key="j"><button v-if="y.term" type="button" class="term" :data-term="y.term.id">{{ y.text }}</button><template v-else>{{ y.text }}</template></template></template><template v-else>{{ x.text }}</template></template></span>
+        >{{ x.text }}</a><template v-else-if="x.terms"><template v-for="(y, j) in x.terms" :key="j"><button v-if="y.term" type="button" class="term" :data-term="y.term.id" :data-gloss="y.term.id.startsWith('x:') ? y.term.en : undefined">{{ y.text }}</button><template v-else>{{ y.text }}</template></template></template><template v-else>{{ x.text }}</template></template></span>
       </p>
     </template>
   </section>

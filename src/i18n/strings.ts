@@ -182,7 +182,7 @@ const en = {
     articleExamples: ['What evidence does it give?', 'Are the hadith in it authentic?', 'Summarise the main points with their dalil'],
     open: 'Ask about this lecture',
   },
-  glossary: { here: 'In this passage', loading: 'Explaining…', error: 'Could not explain it now.', aiNote: 'The explanation is written by AI from the passage.' },
+  glossary: { here: 'In this passage', loading: 'Explaining…', error: 'Could not explain it now.', aiNote: 'The explanation is written by AI from the passage.', foundNote: 'Term and meaning found by AI in this text.', askTerm: 'Ask about this term', askThis: 'Ask about this', askPrompt: 'What does “{text}” mean here?' },
   share: { label: 'Share', copied: 'Link copied', report: 'Report on MajelisNote Dalil' },
   about: {
     nav: 'About',
@@ -427,7 +427,7 @@ const ar: typeof en = {
     articleExamples: ['ما الأدلة المذكورة فيه؟', 'هل أحاديثه صحيحة؟', 'لخّص أهم النقاط مع أدلتها'],
     open: 'اسأل عن هذا الدرس',
   },
-  glossary: { here: 'في هذا الموضع', loading: 'جارٍ الشرح…', error: 'تعذّر الشرح الآن.', aiNote: 'الشرح من كتابة الذكاء الاصطناعي اعتمادًا على النص.' },
+  glossary: { here: 'في هذا الموضع', loading: 'جارٍ الشرح…', error: 'تعذّر الشرح الآن.', aiNote: 'الشرح من كتابة الذكاء الاصطناعي اعتمادًا على النص.', foundNote: 'المصطلح ومعناه استخرجهما الذكاء الاصطناعي من هذا النص.', askTerm: 'اسأل عن هذا المصطلح', askThis: 'اسأل عن هذا', askPrompt: 'ما معنى «{text}» هنا؟' },
   share: { label: 'مشاركة', copied: 'نُسخ الرابط', report: 'تقرير في دليل MajelisNote' },
   about: {
     nav: 'عن الموقع',

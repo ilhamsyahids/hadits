@@ -67,7 +67,6 @@ export const SITES: Site[] = [
   s('syafiqrizabasalamah.com', 'Syafiq Riza Basalamah', 'id', 'scholar', 'Official site of Ustadz Syafiq Riza Basalamah: articles and lectures.', 'الموقع الرسمي للأستاذ Syafiq Riza Basalamah: مقالات ومحاضرات.'),
   s('abiubaidah.com', 'Yusuf Abu Ubaidah As-Sidawi', 'id', 'scholar', 'Official site of Ustadz Yusuf Abu Ubaidah As-Sidawi: articles and lectures.', 'الموقع الرسمي للأستاذ Yusuf Abu Ubaidah As-Sidawi: مقالات ومحاضرات.'),
   s('bimbinganislam.com', 'Bimbingan Islam', 'id', 'articles', 'Structured learning articles from the Bimbingan Islam programme.', 'مقالات تعليمية منظمة من برنامج Bimbingan Islam\u200f.'),
-  s('indonesiabertauhid.com', 'Indonesia Bertauhid', 'id', 'articles', 'Articles on tawhid by Ustadz Ahmad Zainuddin Al-Banjary.', 'مقالات في التوحيد للأستاذ Ahmad Zainuddin Al-Banjary\u200f.'),
 ];
 
 export const domainsFor = (lang: SiteLang | 'all') => SITES.filter((x) => lang === 'all' || x.lang === lang).map((x) => x.domain);

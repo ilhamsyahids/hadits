@@ -88,12 +88,12 @@ def wikipedia(title, revision=None):
 
 
 def warm():
-    """Build each sample's reports, translations and quizzes once, one at a time (each takes 5-60 s, then it is cached)."""
+    """Build each sample's reports, translations, quizzes and terms once, one at a time (each takes 5-60 s, then it is cached)."""
     base = os.environ.get("HADITS_URL", "https://hadits.net")
     for d in DEMOS:
         paths = [f"report?lang={l}" for l in ("en", "ar")]
         paths += [f"translation?to={l}" for l in ("en", "ar", "id") if l != d["lang"]]
-        paths += [f"quiz?lang={l}" for l in ("en", "ar")]
+        paths += [f"{k}?lang={l}" for k in ("quiz", "terms") for l in ("en", "ar")]
         for path in paths:
             url = f"{base}/v1/lectures/{d['id']}/{path}"
             lang = path

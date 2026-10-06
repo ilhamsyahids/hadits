@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Strings } from '../i18n/strings';
-import { termPieces } from '../lib/glossary';
+import { extraTerm, termPieces, type Term } from '../lib/glossary';
 import { prophetic } from '../lib/prophetic';
 
 // Ask: a chat with the AskAgent Durable Object over WebSocket. The model's answer may only point at scripture
@@ -49,7 +49,11 @@ function persist() {
   store.set(INDEX, index.slice(0, 30));
   window.dispatchEvent(new Event('ask-history'));
 }
-watch(() => chat.status.value, (s) => s === 'ready' && persist());
+watch(() => chat.status.value, (s) => {
+  if (s !== 'ready') return;
+  persist();
+  enhanceAll(false); // the finished answer gets its glossary terms
+});
 
 // A turn can be lost when the socket drops mid-answer (a deploy restarts the Durable Object, the network blips):
 // the transport cannot resume it, so after 30 s with nothing new the turn is stopped and a retry is offered.
@@ -78,6 +82,17 @@ const level = ref<'new' | 'student'>(store.get<'new' | 'student'>('ask:level') ?
 watch(level, (v) => store.set('ask:level', v));
 const scroller = ref<HTMLElement | null>(null);
 const busy = computed(() => chat.status.value === 'submitted' || chat.status.value === 'streaming');
+
+// "Ask about this" (TermPopover: a selection or a term) fills the box; the reader edits or sends it.
+onMounted(() => {
+  const q = new URLSearchParams(location.search).get('q');
+  if (q && !props.embedded) fill(q);
+  window.addEventListener('ask-prefill', onPrefill);
+});
+onBeforeUnmount(() => window.removeEventListener('ask-prefill', onPrefill));
+function onPrefill(e: Event) {
+  fill((e as CustomEvent<string>).detail);
+}
 
 // An example fills the box; the reader edits or sends it.
 const inputEl = ref<HTMLTextAreaElement | null>(null);
@@ -152,7 +167,7 @@ const fetchRef = (key: string) => {
 };
 
 /** Fill scripture blocks and citation chips inside one rendered answer. */
-async function enhance(root: HTMLElement, parts: Part[]) {
+async function enhance(root: HTMLElement, parts: Part[], done = true) {
   const { map, valid } = sourcesOf(parts);
   const ok = (id: string) => (valid ? valid.has(id) : map.has(id));
   let n = 0;
@@ -171,7 +186,7 @@ async function enhance(root: HTMLElement, parts: Part[]) {
       sup.append(el);
     }
   }
-  tagTermsIn(root);
+  if (done) tagAnswer(root, answerText(parts));
   for (const box of root.querySelectorAll<HTMLElement>('.scripture-ref')) {
     const key = box.dataset.key ?? '';
     if (box.dataset.filled === key) continue;
@@ -200,8 +215,24 @@ async function enhance(root: HTMLElement, parts: Part[]) {
 }
 
 /** Glossary terms in an English answer become buttons (TermPopover explains them); scripture and links stay as they are. */
-function tagTermsIn(root: HTMLElement) {
-  if (props.lang === 'ar') return;
+// Terms the model finds in a finished answer (POST /v1/terms), fetched once per answer.
+const termCache = new Map<string, Promise<Term[]>>();
+async function tagAnswer(root: HTMLElement, text: string) {
+  const mark = String(text.length);
+  if (!text.trim() || root.dataset.terms === mark) return;
+  root.dataset.terms = mark;
+  if (!termCache.has(text))
+    termCache.set(
+      text,
+      fetch('/v1/terms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, lang: props.lang }) })
+        .then((r) => (r.ok ? (r.json() as Promise<{ terms: { form: string; gloss: string }[] }>) : { terms: [] }))
+        .then((d) => d.terms.map((t) => extraTerm(t.form, t.gloss)))
+        .catch(() => []),
+    );
+  tagTermsIn(root, await termCache.get(text)!);
+}
+
+function tagTermsIn(root: HTMLElement, extra: Term[] = []) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: (n) => ((n.parentElement?.closest('.scripture-ref, a, sup, code, button') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)),
   });
@@ -209,13 +240,14 @@ function tagTermsIn(root: HTMLElement) {
   while (walker.nextNode()) nodes.push(walker.currentNode as Text);
   const seen = new Set<string>();
   for (const node of nodes) {
-    const pieces = termPieces(node.data, seen);
+    const pieces = termPieces(node.data, seen, extra, props.lang !== 'ar');
     if (!pieces.some((p) => p.term)) continue;
     node.replaceWith(
       ...pieces.map((p) => {
         if (!p.term) return document.createTextNode(p.text);
         const b = Object.assign(document.createElement('button'), { type: 'button', className: 'term', textContent: p.text });
         b.dataset.term = p.term.id;
+        if (p.term.id.startsWith('x:')) b.dataset.gloss = p.term.en;
         return b;
       }),
     );
@@ -244,7 +276,7 @@ async function enhanceAll(scroll: boolean) {
   await nextTick();
   for (const m of chat.messages.value) {
     const el = bodies.value[m.id];
-    if (el && m.role === 'assistant') enhance(el, m.parts as Part[]);
+    if (el && m.role === 'assistant') enhance(el, m.parts as Part[], !(busy.value && m.id === chat.messages.value.at(-1)?.id));
   }
   if (scroll) scroller.value?.scrollIntoView({ block: 'end', behavior: 'smooth' });
 }
