@@ -4,6 +4,7 @@ import { family, grades, type Lang, present, reference, resolveKey, unitsByKeys 
 import type { Bindings } from '../env';
 import { norm, stems } from '../lib/arabic';
 import { latinHits, rrf, stemHits, trigramHits, vectorHits, type Hit } from '../search/retrieve';
+import { cachedReport } from '../lectures/report';
 import { parseCitations } from '../search/refparse';
 import { domainsFor } from './sites';
 
@@ -143,5 +144,29 @@ export function makeTools(ctx: { env: Bindings; writer: UIMessageStreamWriter; s
     },
   });
 
-  return { search_dalil, expand_dalil, web_search_trusted, ...(ctx.lectureId ? { search_lecture } : {}) };
+  // The report of this text: every quote it contains, already checked against the corpus (status, source, graders).
+  const lecture_report = tool({
+    description:
+      'Every ayah and hadith quoted in this lecture or article, already checked against the corpus: what was said, where (¶ n or m:ss), ' +
+      'the status (verbatim, paraphrase, misquote, weak or disputed, reference, not found), the source and its grade. ' +
+      'Use it for what the text quotes or whether its hadith are authentic.',
+    inputSchema: z.object({ label: z.string() }),
+    execute: async ({ label }, { toolCallId }) => {
+      progress(toolCallId, label, 'read');
+      type Ref = { status: string; spoken: string; segments?: number[]; start: number; match?: { key: string; reference: string }; grade_summary?: { status?: string; note?: string } };
+      const report = ctx.lectureId ? await cachedReport<{ refs: Ref[] }>(env, ctx.lectureId, lang) : null;
+      if (!report) return { error: 'the report of this text is not built yet; use search_lecture and search_dalil' };
+      const lecture = await env.CACHE.get<{ timing?: string }>(`lecture:${ctx.lectureId}`, 'json');
+      return report.refs.slice(0, 60).map((r) => {
+        const i = r.segments?.[0] ?? 0;
+        const passage = `lecture:${ctx.lectureId}#${i}`;
+        seen.add(passage);
+        if (r.match) seen.add(r.match.key);
+        const where = lecture?.timing === 'audio' ? `${Math.floor(r.start / 60)}:${String(Math.floor(r.start % 60)).padStart(2, '0')}` : `¶ ${i + 1}`;
+        return { passage, where, said: clip(r.spoken, 200), status: r.status, ...(r.match ? { id: r.match.key, reference: r.match.reference } : {}), grade: r.grade_summary?.status ?? null, grade_note: r.grade_summary?.note ?? null };
+      });
+    },
+  });
+
+  return { search_dalil, expand_dalil, web_search_trusted, ...(ctx.lectureId ? { search_lecture, lecture_report } : {}) };
 }

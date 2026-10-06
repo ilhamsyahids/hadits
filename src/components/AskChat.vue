@@ -107,7 +107,12 @@ function sourcesOf(parts: Part[]) {
   for (const p of parts) {
     if (!p.type.startsWith('tool-') || p.state !== 'output-available' || !Array.isArray(p.output)) continue;
     // Lecture passages carry the ayat and hadith they cite (search_lecture → cites).
-    const outputs = (p.output as Record<string, unknown>[]).flatMap((o) => [o, ...((o.cites as Record<string, unknown>[] | undefined) ?? [])]);
+    // lecture_report findings carry their passage (¶) beside the source id.
+    const outputs = (p.output as Record<string, unknown>[]).flatMap((o) => [
+      o,
+      ...((o.cites as Record<string, unknown>[] | undefined) ?? []),
+      ...(o.passage ? [{ id: o.passage, where: o.where }] : []),
+    ]);
     for (const o of outputs) {
       const id = String(o.id ?? '');
       if (!id || map.has(id)) continue;
